@@ -16,7 +16,8 @@ A production **Next.js** (App Router, TypeScript) application deployed on
 | Piece | State |
 | --- | --- |
 | Next.js app + dashboard | ✅ In this repo |
-| API routes (health / HubSpot / Snowflake) | ✅ In this repo |
+| Utilities Activation pipeline board | ✅ `/pipelines/utilities-activation` (live from HubSpot) |
+| API routes (health / HubSpot / pipeline / Snowflake) | ✅ In this repo |
 | CI (build, typecheck, lint) | ✅ `.github/workflows/ci.yml` |
 | HubSpot integration | ✅ Code ready — needs `HUBSPOT_TOKEN` in Vercel |
 | Snowflake integration | ✅ Code ready — needs Snowflake env vars in Vercel |
@@ -52,8 +53,16 @@ npm run lint        # next lint
 | `GET` | `/api/health` | Liveness + which integrations are configured |
 | `GET` | `/api/hubspot?health=1` | HubSpot connectivity check |
 | `GET` | `/api/hubspot?objectType=contacts&query=acme&limit=10` | HubSpot CRM search |
+| `GET` | `/api/hubspot/pipeline` | Ticket pipeline board data (default: Utilities Activation) |
 | `GET` | `/api/snowflake?health=1` | Snowflake connectivity check |
 | `POST` | `/api/snowflake` (body: `{ "sql": "...", "binds": [...] }`) | Run a Snowflake query |
+
+### Pages
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Dashboard — integration status + links |
+| `/pipelines/utilities-activation` | Live board mapping the **Utilities Activation** ticket pipeline: stage summary table + Kanban board with ticket counts and recent tickets per stage |
 
 See [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) for request/response details.
 

@@ -47,6 +47,63 @@ curl "https://<domain>/api/hubspot?objectType=companies&limit=10"
 Errors: `503 hubspot_not_configured` (no token), `502 hubspot_request_failed`
 (HubSpot API error — detail included).
 
+### Ticket pipeline board
+
+Maps a HubSpot **ticket pipeline** into a board view: each stage with its live
+ticket count and a sample of the most recently updated tickets. Code:
+[`src/lib/pipeline.ts`](../src/lib/pipeline.ts),
+route: [`src/app/api/hubspot/pipeline/route.ts`](../src/app/api/hubspot/pipeline/route.ts),
+page: [`src/app/pipelines/utilities-activation/page.tsx`](../src/app/pipelines/utilities-activation/page.tsx).
+
+The featured pipeline is **Utilities Activation** (`id=80932995`). The board is
+generic by pipeline id, so other pipelines can be mapped by passing
+`pipelineId`.
+
+```bash
+# Default (Utilities Activation), 8 sample tickets per stage
+curl "https://<domain>/api/hubspot/pipeline"
+
+# Any ticket pipeline, 5 samples per stage
+curl "https://<domain>/api/hubspot/pipeline?pipelineId=81076231&sample=5"
+```
+
+Response shape:
+
+```jsonc
+{
+  "id": "80932995",
+  "label": "Utilities Activation",
+  "totalCount": 7533,
+  "stages": [
+    {
+      "id": "153030989",
+      "label": "New",
+      "state": "OPEN",
+      "count": 20,
+      "tickets": [
+        { "id": "...", "subject": "...", "priority": "HIGH",
+          "lastModified": "2026-07-28T...", "url": "https://app.hubspot.com/..." }
+      ]
+    }
+    // ... one per stage, in board order
+  ],
+  "generatedAt": "2026-07-28T..."
+}
+```
+
+Implementation notes:
+
+- One search per stage returns both the **total count** and the sample tickets.
+- HubSpot's Search API is rate-limited (a few requests/second), so stages are
+  fetched with **bounded concurrency (3)** and **429/5xx retries** with
+  exponential backoff (honoring `Retry-After`).
+- The page wraps the board in `unstable_cache` with a **60s revalidate**, so
+  ordinary traffic doesn't re-hit HubSpot on every request.
+- The `/api/hubspot/pipeline` route stays live (uncached) for programmatic use.
+
+Ticket cards deep-link to the HubSpot record
+(`https://app.hubspot.com/contacts/22536354/record/0-5/<ticketId>`).
+
 ---
 
 ## Snowflake

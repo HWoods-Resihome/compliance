@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## [0.2.0] - 2026-07-28
+
+### Added
+- **Utilities Activation pipeline board** at `/pipelines/utilities-activation`
+  — maps every stage of the HubSpot ticket pipeline (id `80932995`) with a
+  stage summary table (count + share) and a Kanban board showing recent
+  tickets and priority per stage. Live from HubSpot.
+- `GET /api/hubspot/pipeline` — board data for any ticket pipeline
+  (`?pipelineId=`, `?sample=`), defaulting to Utilities Activation.
+- `src/lib/pipeline.ts` — generic ticket-pipeline board builder with bounded
+  concurrency, 429/5xx retry with backoff, and 60s `unstable_cache`.
+- Home page now links to the pipeline board.
+
 ## [0.1.0] - 2026-07-28
 
 ### Added

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { allIntegrationStatuses } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,17 @@ export default function Home() {
       </p>
 
       <div className="grid">
+        <Link className="card" href="/pipelines/utilities-activation">
+          <h2>
+            <span className="status ok" /> Utilities Activation pipeline →
+          </h2>
+          <p>
+            Live board view mapping every stage of the HubSpot Utilities
+            Activation ticket pipeline, with ticket counts and recent tickets
+            per stage.
+          </p>
+        </Link>
+
         {integrations.map((it) => (
           <div className="card" key={it.name}>
             <h2>
