@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## [0.2.2] - 2026-07-28
+
+### Security
+- Upgraded `next` and `eslint-config-next` from `15.4.6` to **`15.5.22`**
+  (the patched 15.x backport line). Vercel completed the build but **blocked
+  the deployment** on `15.4.6` with "Vulnerable version of Next.js detected" —
+  this was the root cause of the failing production deploys.
+
 ## [0.2.1] - 2026-07-28
 
 ### Changed
