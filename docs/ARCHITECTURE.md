@@ -32,10 +32,13 @@ compliance/
   Snowflake driver needs the Node runtime (not Edge).
 - **HubSpot via `fetch`, no SDK.** Keeps the bundle small and avoids SDK
   version churn; the CRM v3 REST API is stable.
-- **Snowflake via dynamic `import("snowflake-sdk")`.** The driver only loads
-  when a Snowflake route is actually called, so the app builds and boots even
-  before Snowflake credentials exist. `snowflake-sdk` is also listed in
-  `serverExternalPackages` so Vercel resolves it at runtime instead of bundling.
+- **Snowflake driver deliberately not bundled.** `snowflake-sdk` pulls a
+  ~180-package dependency tree that inflates the serverless function past
+  Vercel's 250 MB limit (which fails the build, even though local/CI builds
+  don't enforce it). Since Snowflake is still being connected, the route stays
+  in place and returns `501 snowflake_transport_unavailable` when creds are
+  present. The planned transport is the Snowflake **SQL REST API over fetch**
+  (see docs/INTEGRATIONS.md) — no heavy Node driver.
 - **Graceful degradation.** Each integration reports "not configured" (HTTP
   503) rather than crashing when its env vars are absent. This lets production
   go live with only HubSpot, then light up Snowflake later by adding env vars.

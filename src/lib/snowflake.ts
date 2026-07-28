@@ -18,6 +18,22 @@ export class SnowflakeNotConfiguredError extends Error {
   }
 }
 
+/**
+ * Thrown when Snowflake credentials ARE present but no query transport is
+ * wired up in this deployment yet. The heavy `snowflake-sdk` Node driver is
+ * intentionally not bundled (it inflates the serverless function past
+ * Vercel's size limit). Once Snowflake is connected, queries will be issued
+ * via the Snowflake SQL REST API over fetch — see docs/INTEGRATIONS.md.
+ */
+export class SnowflakeDriverUnavailableError extends Error {
+  constructor() {
+    super(
+      "Snowflake credentials detected, but the query transport is not wired up in this deployment yet.",
+    );
+    this.name = "SnowflakeDriverUnavailableError";
+  }
+}
+
 function requireConfig() {
   const cfg = {
     account: process.env.SNOWFLAKE_ACCOUNT,
@@ -46,56 +62,27 @@ function requireConfig() {
 export type SnowflakeRow = Record<string, unknown>;
 
 /**
- * Execute a single SQL statement and return the rows. Binds are passed
- * through the driver's parameterized binding to avoid SQL injection.
- * A fresh connection is opened and destroyed per call — simple and safe
- * for serverless; swap for a pool if call volume grows.
+ * Execute a single SQL statement and return the rows.
+ *
+ * Transport is not yet wired up: when credentials are missing this throws
+ * SnowflakeNotConfiguredError; when they are present it throws
+ * SnowflakeDriverUnavailableError until the SQL REST API transport is added
+ * (planned once Snowflake is connected). This keeps the serverless bundle
+ * small and the deployment healthy in the meantime.
  */
 export async function snowflakeQuery(
-  sqlText: string,
-  binds: (string | number | null)[] = [],
+  _sqlText: string,
+  _binds: (string | number | null)[] = [],
 ): Promise<SnowflakeRow[]> {
-  const cfg = requireConfig();
-
-  // Dynamic import keeps the driver out of the boot path when unconfigured.
-  const snowflake = (await import("snowflake-sdk")).default;
-
-  const connection = snowflake.createConnection({
-    account: cfg.account!,
-    username: cfg.username!,
-    password: cfg.password!,
-    role: cfg.role,
-    warehouse: cfg.warehouse,
-    database: cfg.database,
-    schema: cfg.schema,
-    clientSessionKeepAlive: false,
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    connection.connect((err) => (err ? reject(err) : resolve()));
-  });
-
-  try {
-    return await new Promise<SnowflakeRow[]>((resolve, reject) => {
-      connection.execute({
-        sqlText,
-        binds,
-        complete: (err, _stmt, rows) => {
-          if (err) reject(err);
-          else resolve((rows as SnowflakeRow[]) ?? []);
-        },
-      });
-    });
-  } finally {
-    connection.destroy(() => {
-      /* best-effort cleanup */
-    });
-  }
+  requireConfig(); // throws SnowflakeNotConfiguredError if creds are missing
+  throw new SnowflakeDriverUnavailableError();
 }
 
-/** Connectivity check — runs `SELECT CURRENT_VERSION()`. */
-export async function snowflakeHealth(): Promise<{ ok: boolean; version?: string }> {
-  const rows = await snowflakeQuery("SELECT CURRENT_VERSION() AS VERSION");
-  const version = rows[0]?.["VERSION"];
-  return { ok: true, version: version ? String(version) : undefined };
+/** Connectivity check. */
+export async function snowflakeHealth(): Promise<{
+  ok: boolean;
+  version?: string;
+}> {
+  requireConfig();
+  throw new SnowflakeDriverUnavailableError();
 }

@@ -108,18 +108,31 @@ Ticket cards deep-link to the HubSpot record
 
 ## Snowflake
 
-Backed by the official `snowflake-sdk` Node driver. Code:
-[`src/lib/snowflake.ts`](../src/lib/snowflake.ts),
+Code: [`src/lib/snowflake.ts`](../src/lib/snowflake.ts),
 route: [`src/app/api/snowflake/route.ts`](../src/app/api/snowflake/route.ts).
 
-A fresh connection is opened and destroyed per request (simple and safe for
-serverless). Queries use **parameterized binds** to avoid SQL injection.
+**Status: transport not yet wired up.** The heavy `snowflake-sdk` Node driver
+is intentionally **not bundled** — with its ~180-package dependency tree it
+inflates the serverless function past Vercel's 250 MB limit and fails the
+build. Since Snowflake is still being connected, the route stays in place and
+degrades gracefully:
+
+- Missing credentials → `503 snowflake_not_configured`.
+- Credentials present but no transport yet → `501 snowflake_transport_unavailable`.
+
+### Planned transport: Snowflake SQL REST API
+
+When Snowflake is connected, queries will be issued over the
+[Snowflake SQL REST API](https://docs.snowflake.com/en/developer-guide/sql-api/index)
+using `fetch` (key-pair / OAuth auth) — the same lightweight, serverless-friendly
+pattern used for HubSpot, with **no** heavy Node driver. The route contract
+below is what it will serve.
 
 ### Health check
 
 ```bash
 curl "https://<domain>/api/snowflake?health=1"
-# → { "ok": true, "version": "8.x.x" }
+# → { "ok": true, "version": "8.x.x" }   (once transport is wired)
 ```
 
 ### Run a query
@@ -135,9 +148,7 @@ curl -X POST "https://<domain>/api/snowflake" \
 # → { "rowCount": 50, "rows": [ ... ] }
 ```
 
-Errors: `503 snowflake_not_configured` (missing account/user/password),
-`502 snowflake_request_failed` (driver/query error — detail included),
-`400` for a missing/invalid body.
+Queries will use **parameterized binds** to avoid SQL injection.
 
 > **Security:** the `POST` route executes arbitrary SQL and is meant for
 > trusted internal callers. In production, set `API_LOOKUP_KEY` and point the

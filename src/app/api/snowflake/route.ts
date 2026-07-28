@@ -4,6 +4,7 @@ import {
   snowflakeQuery,
   snowflakeHealth,
   SnowflakeNotConfiguredError,
+  SnowflakeDriverUnavailableError,
 } from "@/lib/snowflake";
 
 export const runtime = "nodejs";
@@ -72,6 +73,12 @@ function errorResponse(err: unknown) {
         missing: err.missing,
       },
       { status: 503 },
+    );
+  }
+  if (err instanceof SnowflakeDriverUnavailableError) {
+    return NextResponse.json(
+      { error: "snowflake_transport_unavailable", detail: err.message },
+      { status: 501 },
     );
   }
   return NextResponse.json(

@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## [0.2.1] - 2026-07-28
+
+### Changed
+- Removed the `snowflake-sdk` dependency (~180 transitive packages). Traced
+  into the serverless function it exceeded Vercel's 250 MB limit and broke the
+  production build. The Snowflake route now returns
+  `501 snowflake_transport_unavailable` when credentials are present, pending
+  the SQL REST API (fetch) transport to be added once Snowflake is connected.
+- `vercel.json`: pinned `framework=nextjs`, `buildCommand`, `installCommand`.
+- Synced `package-lock.json` version with `package.json`.
+
+### Fixed
+- Production Vercel builds were failing on every commit; root cause was the
+  heavy Snowflake driver inflating the function bundle.
+
 ## [0.2.0] - 2026-07-28
 
 ### Added
