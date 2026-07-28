@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
+  "functions": {
+    "src/app/api/snowflake/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}

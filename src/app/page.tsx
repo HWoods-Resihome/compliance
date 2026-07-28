@@ -1,0 +1,70 @@
+import { allIntegrationStatuses } from "@/lib/config";
+
+export const dynamic = "force-dynamic";
+
+export default function Home() {
+  const integrations = allIntegrationStatuses();
+
+  return (
+    <main className="container">
+      <div className="header">
+        <div>
+          <h1 className="title">ResiHome Compliance</h1>
+        </div>
+        <span className="badge">
+          <span className="status ok" /> Deployed on Vercel
+        </span>
+      </div>
+      <p className="subtitle">
+        Compliance data lookup across HubSpot and Snowflake. This dashboard and
+        its API routes are deployed continuously from the <code>main</code>{" "}
+        branch.
+      </p>
+
+      <div className="grid">
+        {integrations.map((it) => (
+          <div className="card" key={it.name}>
+            <h2>
+              <span className={`status ${it.configured ? "ok" : "off"}`} />
+              {it.name}
+            </h2>
+            <p>
+              {it.configured
+                ? "Credentials detected. Data lookup is available."
+                : "Not configured yet. Add the required environment variables in Vercel."}
+            </p>
+            {!it.configured && it.missing.length > 0 && (
+              <p>
+                Missing:{" "}
+                {it.missing.map((m) => (
+                  <span className="pill" key={m} style={{ marginRight: 6 }}>
+                    {m}
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+        ))}
+
+        <div className="card">
+          <h2>API endpoints</h2>
+          <p>Serverless routes available for data lookup:</p>
+          <p>
+            <code>GET /api/health</code>
+            <br />
+            <code>GET /api/hubspot?query=...</code>
+            <br />
+            <code>GET /api/snowflake?health=1</code>
+            <br />
+            <code>POST /api/snowflake</code>
+          </p>
+        </div>
+      </div>
+
+      <div className="footer">
+        ResiHome Compliance · Environment configuration is managed in Vercel ·
+        See <code>docs/</code> for deployment and integration guides.
+      </div>
+    </main>
+  );
+}

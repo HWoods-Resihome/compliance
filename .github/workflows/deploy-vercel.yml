@@ -1,0 +1,65 @@
+name: Deploy to Vercel (manual / optional)
+
+# OPTIONAL, OPT-IN deployment path.
+#
+# By default this repo deploys via Vercel's native Git integration, which
+# auto-deploys production on every push to `main` — you do NOT need this
+# workflow for that. Use this only if you prefer CI-driven deploys instead
+# of (or in addition to) the native integration.
+#
+# To enable, add these repository secrets (Settings → Secrets → Actions):
+#   VERCEL_TOKEN      - a Vercel access token
+#   VERCEL_ORG_ID     - from `.vercel/project.json` after `vercel link`
+#   VERCEL_PROJECT_ID - from `.vercel/project.json` after `vercel link`
+#
+# This runs only when triggered manually so it never conflicts with the
+# native Git integration or fails on missing secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment target"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - preview
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment information
+        run: vercel pull --yes --environment=${{ inputs.environment }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build project artifacts
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          fi
+
+      - name: Deploy to Vercel
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+          fi
