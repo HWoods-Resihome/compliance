@@ -22,12 +22,14 @@ export function hubspotStatus(): IntegrationStatus {
 }
 
 export function snowflakeStatus(): IntegrationStatus {
-  const required = [
-    "SNOWFLAKE_ACCOUNT",
-    "SNOWFLAKE_USER",
-    "SNOWFLAKE_PASSWORD",
-  ];
-  const missing = required.filter((k) => !present(k));
+  // The SQL REST API transport authenticates with a key-pair JWT (preferred)
+  // or an OAuth token — not a password.
+  const missing: string[] = [];
+  if (!present("SNOWFLAKE_ACCOUNT")) missing.push("SNOWFLAKE_ACCOUNT");
+  if (!present("SNOWFLAKE_USER")) missing.push("SNOWFLAKE_USER");
+  if (!present("SNOWFLAKE_PRIVATE_KEY") && !present("SNOWFLAKE_OAUTH_TOKEN")) {
+    missing.push("SNOWFLAKE_PRIVATE_KEY or SNOWFLAKE_OAUTH_TOKEN");
+  }
   return { name: "Snowflake", configured: missing.length === 0, missing };
 }
 

@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here.
 
+## [0.4.0] - 2026-07-30
+
+### Added
+- **Snowflake SQL REST API transport is now wired up** (`src/lib/snowflake.ts`),
+  replacing the stub that returned `501 snowflake_transport_unavailable`.
+  Queries execute over the SQL REST API with plain `fetch` and **no** heavy
+  Node driver, keeping the serverless bundle small:
+  - **Key-pair JWT auth** (RS256, signed with built-in `node:crypto`, 1 h
+    expiry, derived public-key fingerprint) via `SNOWFLAKE_PRIVATE_KEY`
+    (PEM / escaped-PEM / base64, optional passphrase), plus an **OAuth-token**
+    fallback (`SNOWFLAKE_OAUTH_TOKEN`).
+  - Positional `?` binds sent as typed `bindings`; result **partition**
+    stitching for large pulls; `202 Accepted` **polling**; and
+    `429`/`5xx`/network **retries** with backoff under a client-side timeout.
+  - The `/associations` page, `/api/associations`, and `/api/snowflake` now
+    serve live data as soon as credentials are set.
+
+### Changed
+- `snowflakeStatus()` and `.env.example` reflect the new auth model
+  (`SNOWFLAKE_PRIVATE_KEY` **or** `SNOWFLAKE_OAUTH_TOKEN` — no password).
+- docs/INTEGRATIONS.md documents the SQL REST transport and auth setup.
+
 ## [0.3.1] - 2026-07-30
 
 ### Changed

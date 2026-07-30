@@ -111,28 +111,48 @@ Ticket cards deep-link to the HubSpot record
 Code: [`src/lib/snowflake.ts`](../src/lib/snowflake.ts),
 route: [`src/app/api/snowflake/route.ts`](../src/app/api/snowflake/route.ts).
 
-**Status: transport not yet wired up.** The heavy `snowflake-sdk` Node driver
-is intentionally **not bundled** — with its ~180-package dependency tree it
-inflates the serverless function past Vercel's 250 MB limit and fails the
-build. Since Snowflake is still being connected, the route stays in place and
-degrades gracefully:
-
-- Missing credentials → `503 snowflake_not_configured`.
-- Credentials present but no transport yet → `501 snowflake_transport_unavailable`.
-
-### Planned transport: Snowflake SQL REST API
-
-When Snowflake is connected, queries will be issued over the
+Queries run over the
 [Snowflake SQL REST API](https://docs.snowflake.com/en/developer-guide/sql-api/index)
-using `fetch` (key-pair / OAuth auth) — the same lightweight, serverless-friendly
-pattern used for HubSpot, with **no** heavy Node driver. The route contract
-below is what it will serve.
+with plain `fetch` — the same lightweight, serverless-friendly pattern used for
+HubSpot. The heavy `snowflake-sdk` Node driver is intentionally **not bundled**
+(its ~180-package tree pushes the serverless function past Vercel's 250 MB
+limit). Requests are signed with a key-pair JWT built from Node's built-in
+`node:crypto`, so **no extra dependency** is added.
+
+If credentials are missing the route still degrades gracefully with
+`503 snowflake_not_configured`.
+
+### Authentication
+
+Two modes, resolved in this order (set env in Vercel → Project Settings):
+
+1. **Key-pair JWT** (recommended). Register the user's RSA public key in
+   Snowflake (`ALTER USER <user> SET RSA_PUBLIC_KEY='MII...'`) and give the app
+   the matching **private** key via `SNOWFLAKE_PRIVATE_KEY`. The value may be a
+   PKCS#8 PEM, that PEM with literal `\n` escapes, or base64 of the PEM/DER
+   (convenient for single-line env values). Encrypted keys: also set
+   `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`. The transport derives the public-key
+   fingerprint and signs a short-lived (1 h) RS256 JWT per request.
+2. **OAuth token** — set `SNOWFLAKE_OAUTH_TOKEN`; it is sent verbatim as the
+   bearer token.
+
+Required: `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER`, and one of the auth secrets.
+Optional session context: `SNOWFLAKE_ROLE`, `SNOWFLAKE_WAREHOUSE`,
+`SNOWFLAKE_DATABASE`, `SNOWFLAKE_SCHEMA`. Rare overrides: `SNOWFLAKE_HOST`,
+`SNOWFLAKE_JWT_ACCOUNT`.
+
+Implementation notes: positional `?` binds are sent as typed
+`bindings`; large result sets are stitched across **result partitions**;
+long-running statements that return `202 Accepted` are **polled** to
+completion; and `429`/`5xx`/network errors are **retried** with exponential
+backoff (honoring `Retry-After`), all under a client-side timeout below the
+route's `maxDuration`.
 
 ### Health check
 
 ```bash
 curl "https://<domain>/api/snowflake?health=1"
-# → { "ok": true, "version": "8.x.x" }   (once transport is wired)
+# → { "ok": true, "version": "8.x.x" }
 ```
 
 ### Run a query
@@ -166,9 +186,9 @@ Code: [`src/lib/associations.ts`](../src/lib/associations.ts),
 route: [`src/app/api/associations/route.ts`](../src/app/api/associations/route.ts),
 page: [`src/app/associations/page.tsx`](../src/app/associations/page.tsx).
 
-It runs on top of the same Snowflake transport as `/api/snowflake`, so it
-degrades identically until that transport + credentials are wired up
-(`503 snowflake_not_configured`, `501 snowflake_transport_unavailable`).
+It runs on top of the same Snowflake SQL REST transport as `/api/snowflake`,
+so it activates as soon as the Snowflake credentials are set and otherwise
+degrades gracefully (`503 snowflake_not_configured`).
 
 ### Endpoints
 
