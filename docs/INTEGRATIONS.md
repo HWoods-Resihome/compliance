@@ -197,12 +197,22 @@ the real schema can be pointed at **without a code change**:
 
 | Concern | Table env var | Default |
 | --- | --- | --- |
-| Associations | `RESIAIMS_ASSOCIATIONS_TABLE` | `ASSOCIATIONS` |
-| Contacts | `RESIAIMS_CONTACTS_TABLE` | `ASSOCIATION_CONTACTS` |
+| Associations (HOA tab) | `RESIAIMS_ASSOCIATIONS_TABLE` | `ASSOCIATIONS` |
 | Amenities | `RESIAIMS_AMENITIES_TABLE` | `ASSOCIATION_AMENITIES` |
 | Access codes | `RESIAIMS_ACCESS_CODES_TABLE` | `ASSOCIATION_ACCESS_CODES` |
 | Inspections | `RESIAIMS_INSPECTIONS_TABLE` | `ASSOCIATION_INSPECTIONS` |
 | Properties | `RESIAIMS_PROPERTIES_TABLE` | `PROPERTIES` |
+
+The **HOA tab** fields are modeled directly on the ResiAIMS "Association
+Details" screen and live as columns on the associations record: status, fax,
+EIN/TaxID, invoice recovery, management company + 3 management-company POCs,
+physical address, local mailing address, and 3 points of contact (name,
+title, email, phone, ext). Each has a `RESIAIMS_ASSOC_*` column override — see
+`src/lib/associations.ts` for the full list.
+
+> The **Leasing Info / Amenities / Access Codes / Inspections** tab field
+> lists are modeled from their tab names only (those tabs haven't been
+> inspected yet). Confirm/adjust their columns when their layouts are known.
 
 Database/schema default to `RESIAIMS_DATABASE` / `RESIAIMS_SCHEMA` (falling
 back to `SNOWFLAKE_DATABASE` / `SNOWFLAKE_SCHEMA`). Column overrides

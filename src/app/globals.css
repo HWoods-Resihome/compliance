@@ -413,3 +413,6 @@ code {
   letter-spacing: 0.05em;
   color: var(--muted);
 }
+.preline {
+  white-space: pre-line;
+}

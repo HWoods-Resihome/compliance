@@ -6,6 +6,7 @@ import {
   SnowflakeDriverUnavailableError,
   type AssociationSummary,
   type Association,
+  type Address,
 } from "@/lib/associations";
 
 export const dynamic = "force-dynamic";
@@ -38,16 +39,21 @@ function fmtDate(v: string | null): string {
   });
 }
 
+function fmtAddress(a: Address): string {
+  const line2 = [a.city, a.state].filter(Boolean).join(", ");
+  const parts = [a.name, a.address, [line2, a.zip].filter(Boolean).join(" ")]
+    .map((p) => (p ?? "").trim())
+    .filter(Boolean);
+  return parts.length ? parts.join("\n") : "—";
+}
+
 export default async function AssociationsPage({
   searchParams,
 }: {
   searchParams: Promise<{ id?: string }>;
 }) {
   const { id } = await searchParams;
-
-  if (id) {
-    return <AssociationDetail id={id} />;
-  }
+  if (id) return <AssociationDetail id={id} />;
   return <AssociationList />;
 }
 
@@ -76,9 +82,9 @@ async function AssociationList() {
       </div>
 
       <p className="subtitle">
-        HOA / association records extracted from ResiAIMS — contacts, leasing,
-        amenities, access codes, inspections, and the properties mapped to each
-        association.
+        HOA / association records extracted from ResiAIMS — management company,
+        contacts, amenities, access codes, inspections, and the properties
+        mapped to each association.
       </p>
 
       {errorMessage && (
@@ -99,9 +105,10 @@ async function AssociationList() {
               <thead>
                 <tr>
                   <th>Association</th>
-                  <th>Type</th>
                   <th>Status</th>
                   <th>Management company</th>
+                  <th>City</th>
+                  <th>State</th>
                   <th className="num">Properties</th>
                 </tr>
               </thead>
@@ -113,9 +120,10 @@ async function AssociationList() {
                         {a.name || `(association ${a.id})`}
                       </Link>
                     </td>
-                    <td>{val(a.type)}</td>
                     <td>{val(a.status)}</td>
                     <td>{val(a.managementCompany)}</td>
+                    <td>{val(a.city)}</td>
+                    <td>{val(a.state)}</td>
                     <td className="num">{a.propertyCount.toLocaleString()}</td>
                   </tr>
                 ))}
@@ -147,6 +155,11 @@ async function AssociationDetail({ id }: { id: string }) {
           </p>
           <h1 className="title">{assoc?.name || `Association ${id}`}</h1>
         </div>
+        {assoc?.status && (
+          <span className="badge">
+            <span className="status ok" /> {assoc.status}
+          </span>
+        )}
       </div>
 
       {errorMessage && (
@@ -162,65 +175,59 @@ async function AssociationDetail({ id }: { id: string }) {
 
       {assoc && (
         <>
+          {/* HOA tab */}
+          <h2 className="section-title">HOA</h2>
           <section className="panel detail-grid">
-            <div>
-              <span className="field-label">Type</span>
-              <span>{val(assoc.type)}</span>
-            </div>
             <div>
               <span className="field-label">Status</span>
               <span>{val(assoc.status)}</span>
+            </div>
+            <div>
+              <span className="field-label">Fax</span>
+              <span>{val(assoc.fax)}</span>
+            </div>
+            <div>
+              <span className="field-label">EIN / TaxID</span>
+              <span>{val(assoc.einTaxId)}</span>
+            </div>
+            <div>
+              <span className="field-label">Invoice recovery</span>
+              <span>{val(assoc.invoiceRecovery)}</span>
             </div>
             <div>
               <span className="field-label">Management company</span>
               <span>{val(assoc.managementCompany)}</span>
             </div>
             <div>
-              <span className="field-label">Phone</span>
-              <span>{val(assoc.phone)}</span>
+              <span className="field-label">Management company POCs</span>
+              <span>
+                {assoc.managementPocs.length
+                  ? assoc.managementPocs.join(" · ")
+                  : "—"}
+              </span>
             </div>
             <div>
-              <span className="field-label">Email</span>
-              <span>{val(assoc.email)}</span>
+              <span className="field-label">Physical address</span>
+              <span className="preline">{fmtAddress(assoc.physicalAddress)}</span>
             </div>
             <div>
-              <span className="field-label">Website</span>
-              <span>{val(assoc.website)}</span>
+              <span className="field-label">Local mailing address</span>
+              <span className="preline">{fmtAddress(assoc.mailingAddress)}</span>
             </div>
           </section>
 
-          {/* Leasing */}
-          <h2 className="section-title">Leasing</h2>
-          <section className="panel detail-grid">
-            <div>
-              <span className="field-label">Lease approval required</span>
-              <span>{val(assoc.leasing.leaseApprovalRequired)}</span>
-            </div>
-            <div>
-              <span className="field-label">Rental cap</span>
-              <span>{val(assoc.leasing.rentalCapPct)}</span>
-            </div>
-            <div>
-              <span className="field-label">Min lease term (months)</span>
-              <span>{val(assoc.leasing.minLeaseTermMonths)}</span>
-            </div>
-            <div className="span-all">
-              <span className="field-label">Restrictions</span>
-              <span>{val(assoc.leasing.restrictions)}</span>
-            </div>
-          </section>
-
-          {/* Contacts */}
-          <h2 className="section-title">Contacts</h2>
+          {/* Points of contact */}
+          <h2 className="section-title">Points of contact</h2>
           <Table
-            head={["Name", "Role", "Phone", "Email"]}
-            rows={assoc.contacts.map((c) => [
+            head={["Name", "Title", "Email", "Phone", "Ext"]}
+            rows={assoc.pointsOfContact.map((c) => [
               val(c.name),
-              val(c.role),
-              val(c.phone),
+              val(c.title),
               val(c.email),
+              val(c.phone),
+              val(c.ext),
             ])}
-            empty="No contacts"
+            empty="No points of contact"
           />
 
           {/* Amenities */}
@@ -259,7 +266,8 @@ async function AssociationDetail({ id }: { id: string }) {
 
           {/* Mapped properties */}
           <h2 className="section-title">
-            Properties in this association ({assoc.properties.length.toLocaleString()})
+            Properties in this association (
+            {assoc.properties.length.toLocaleString()})
           </h2>
           <Table
             head={["Property ID", "Address", "City", "State", "ZIP", "Status"]}
@@ -288,9 +296,7 @@ function Table({
   rows: string[][];
   empty: string;
 }) {
-  if (rows.length === 0) {
-    return <p className="empty">{empty}</p>;
-  }
+  if (rows.length === 0) return <p className="empty">{empty}</p>;
   return (
     <section className="panel">
       <div className="table-scroll">
