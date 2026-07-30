@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here.
 
+## [0.3.1] - 2026-07-30
+
+### Changed
+- **Associations schema pointed at the real ResiAIMS warehouse.** The data
+  layer (`src/lib/associations.ts`) now targets the confirmed
+  `PROD_ANALYTICS.DBT_RESICAP` star schema instead of placeholder names:
+  - `DIM_HOA` (association master, SCD — filtered to `CURRENT_FLAG='Y'`) for
+    the HOA / Leasing / Amenities tabs, joined to `FCT_HOA_ACCUM` for status
+    and the assessment rollup.
+  - `FCT_HOA_PROPERTY` for the association⇄property map and the per-property
+    inspection dates (chimney / dryer / HVAC / fire).
+  - `FCT_HOA_ACCESS_CODE_ACCUM` (by `HOA_KEY`) for access codes.
+  - `DIM_PROPERTY` (SCD) for property addresses.
+  - Associations keyed by the `HOA_KEY` surrogate; `HOA_ID` exposed as the
+    business id. All queries validated against live Snowflake.
+- Corrected the association model to match reality: a single primary point of
+  contact plus a secondary contact and one management-company POC (replacing
+  the earlier 3-POC assumption); leasing / amenities / utilities rendered as
+  label/value lists; inspections surfaced on each mapped property.
+- Every table/column stays overridable via `RESIAIMS_*` env vars; defaults now
+  reflect the real names. Docs + `.env.example` updated.
+
 ## [0.3.0] - 2026-07-30
 
 ### Added

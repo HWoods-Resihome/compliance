@@ -7,6 +7,8 @@ import {
   type AssociationSummary,
   type Association,
   type Address,
+  type Contact,
+  type Field,
 } from "@/lib/associations";
 
 export const dynamic = "force-dynamic";
@@ -41,10 +43,17 @@ function fmtDate(v: string | null): string {
 
 function fmtAddress(a: Address): string {
   const line2 = [a.city, a.state].filter(Boolean).join(", ");
-  const parts = [a.name, a.address, [line2, a.zip].filter(Boolean).join(" ")]
+  const parts = [a.address, [line2, a.zip].filter(Boolean).join(" ")]
     .map((p) => (p ?? "").trim())
     .filter(Boolean);
   return parts.length ? parts.join("\n") : "—";
+}
+
+function fmtContact(c: Contact): string {
+  const parts = [c.name, c.title, c.email, c.phone]
+    .map((p) => (p ?? "").trim())
+    .filter(Boolean);
+  return parts.length ? parts.join(" · ") : "—";
 }
 
 export default async function AssociationsPage({
@@ -83,8 +92,8 @@ async function AssociationList() {
 
       <p className="subtitle">
         HOA / association records extracted from ResiAIMS — management company,
-        contacts, amenities, access codes, inspections, and the properties
-        mapped to each association.
+        contacts, leasing rules, amenities, access codes, and the properties
+        mapped to each association (with per-property inspection dates).
       </p>
 
       {errorMessage && (
@@ -178,112 +187,178 @@ async function AssociationDetail({ id }: { id: string }) {
           {/* HOA tab */}
           <h2 className="section-title">HOA</h2>
           <section className="panel detail-grid">
-            <div>
-              <span className="field-label">Status</span>
-              <span>{val(assoc.status)}</span>
-            </div>
-            <div>
-              <span className="field-label">Fax</span>
-              <span>{val(assoc.fax)}</span>
-            </div>
-            <div>
-              <span className="field-label">EIN / TaxID</span>
-              <span>{val(assoc.einTaxId)}</span>
-            </div>
-            <div>
-              <span className="field-label">Invoice recovery</span>
-              <span>{val(assoc.invoiceRecovery)}</span>
-            </div>
-            <div>
-              <span className="field-label">Management company</span>
-              <span>{val(assoc.managementCompany)}</span>
-            </div>
-            <div>
-              <span className="field-label">Management company POCs</span>
-              <span>
-                {assoc.managementPocs.length
-                  ? assoc.managementPocs.join(" · ")
-                  : "—"}
-              </span>
-            </div>
-            <div>
-              <span className="field-label">Physical address</span>
-              <span className="preline">{fmtAddress(assoc.physicalAddress)}</span>
-            </div>
-            <div>
-              <span className="field-label">Local mailing address</span>
-              <span className="preline">{fmtAddress(assoc.mailingAddress)}</span>
-            </div>
+            <Cell label="HOA ID" value={val(assoc.hoaId)} />
+            <Cell label="Status" value={val(assoc.status)} />
+            <Cell label="Address" value={fmtAddress(assoc.address)} pre />
+            <Cell
+              label="Website"
+              value={val(assoc.website.address)}
+            />
+            <Cell
+              label="Website username"
+              value={val(assoc.website.username)}
+            />
+            <Cell
+              label="Access codes completed"
+              value={val(assoc.accessCodesCompleted)}
+            />
+            <Cell label="Primary contact" value={fmtContact(assoc.primaryContact)} />
+            <Cell
+              label="Alternate contact"
+              value={fmtContact({
+                name: assoc.altContact.name,
+                title: null,
+                email: assoc.altContact.email,
+                phone: assoc.altContact.phone,
+              })}
+            />
           </section>
 
-          {/* Points of contact */}
-          <h2 className="section-title">Points of contact</h2>
-          <Table
-            head={["Name", "Title", "Email", "Phone", "Ext"]}
-            rows={assoc.pointsOfContact.map((c) => [
-              val(c.name),
-              val(c.title),
-              val(c.email),
-              val(c.phone),
-              val(c.ext),
-            ])}
-            empty="No points of contact"
-          />
+          {/* Management company */}
+          <h2 className="section-title">Management company</h2>
+          <section className="panel detail-grid">
+            <Cell label="Company" value={val(assoc.management.company)} />
+            <Cell label="Contact" value={val(assoc.management.contactName)} />
+            <Cell label="Phone" value={val(assoc.management.contactPhone)} />
+            <Cell label="Email" value={val(assoc.management.email)} />
+            <Cell
+              label="Address"
+              value={fmtAddress(assoc.management.address)}
+              pre
+            />
+            <Cell
+              label="Management POC"
+              value={fmtContact(assoc.management.poc)}
+            />
+          </section>
+
+          {/* Assessment */}
+          <h2 className="section-title">Assessment</h2>
+          <section className="panel detail-grid">
+            <Cell label="Dues" value={val(assoc.assessment.dues)} />
+            <Cell label="Frequency" value={val(assoc.assessment.frequency)} />
+            <Cell
+              label="Total assessment amount"
+              value={val(assoc.assessment.totalAssessmentAmount)}
+            />
+            <Cell label="Periodicity" value={val(assoc.assessment.periodicity)} />
+            <Cell
+              label="Special assessment dues"
+              value={val(assoc.assessment.specialAssessmentDues)}
+            />
+            <Cell
+              label="Fiscal year start"
+              value={val(assoc.assessment.fiscalYearStart)}
+            />
+            <Cell
+              label="Payment website"
+              value={val(assoc.assessment.paymentWebsite)}
+            />
+          </section>
+
+          {/* Leasing info */}
+          <h2 className="section-title">Leasing info</h2>
+          <FieldTable fields={assoc.leasing} empty="No leasing information" />
 
           {/* Amenities */}
           <h2 className="section-title">Amenities</h2>
-          <Table
-            head={["Amenity", "Description"]}
-            rows={assoc.amenities.map((a) => [val(a.name), val(a.description)])}
-            empty="No amenities"
-          />
+          <FieldTable fields={assoc.amenities} empty="No amenities recorded" />
+
+          {/* Utilities / services */}
+          <h2 className="section-title">Utilities &amp; services</h2>
+          <FieldTable fields={assoc.utilities} empty="No utilities recorded" />
 
           {/* Access codes */}
           <h2 className="section-title">Access codes</h2>
           <Table
-            head={["Label", "Code", "Notes"]}
+            head={[
+              "Access for",
+              "Available",
+              "Control",
+              "Cost",
+              "Description",
+              "Contact",
+              "Form",
+              "Notes",
+            ]}
             rows={assoc.accessCodes.map((a) => [
-              val(a.label),
-              val(a.code),
+              val(a.accessFor),
+              val(a.available),
+              val(a.control),
+              val(a.controlCost),
+              val(a.description),
+              val(a.contactName || a.contactEmail),
+              val(a.formExist),
               val(a.notes),
             ])}
             empty="No access codes"
           />
 
-          {/* Inspections */}
-          <h2 className="section-title">Inspections</h2>
-          <Table
-            head={["Type", "Status", "Scheduled", "Completed", "Result"]}
-            rows={assoc.inspections.map((i) => [
-              val(i.type),
-              val(i.status),
-              fmtDate(i.scheduledDate),
-              fmtDate(i.completedDate),
-              val(i.result),
-            ])}
-            empty="No inspections"
-          />
-
-          {/* Mapped properties */}
+          {/* Mapped properties (with inspection dates) */}
           <h2 className="section-title">
             Properties in this association (
             {assoc.properties.length.toLocaleString()})
           </h2>
           <Table
-            head={["Property ID", "Address", "City", "State", "ZIP", "Status"]}
+            head={[
+              "Property key",
+              "Address",
+              "State",
+              "ZIP",
+              "Property status",
+              "HOA status",
+              "Account #",
+              "Chimney insp.",
+              "Dryer insp.",
+              "HVAC insp.",
+              "Fire insp.",
+            ]}
             rows={assoc.properties.map((p) => [
-              val(p.id),
+              val(p.propertyKey),
               val(p.address),
-              val(p.city),
               val(p.state),
               val(p.zip),
-              val(p.status),
+              val(p.propertyStatus),
+              val(p.hoaPropertyStatus),
+              val(p.accountNumber),
+              fmtDate(p.inspections.chimney),
+              fmtDate(p.inspections.dryer),
+              fmtDate(p.inspections.hvac),
+              fmtDate(p.inspections.fire),
             ])}
             empty="No properties mapped to this association"
           />
         </>
       )}
     </main>
+  );
+}
+
+function Cell({
+  label,
+  value,
+  pre,
+}: {
+  label: string;
+  value: string;
+  pre?: boolean;
+}) {
+  return (
+    <div>
+      <span className="field-label">{label}</span>
+      <span className={pre ? "preline" : undefined}>{value}</span>
+    </div>
+  );
+}
+
+function FieldTable({ fields, empty }: { fields: Field[]; empty: string }) {
+  if (fields.length === 0) return <p className="empty">{empty}</p>;
+  return (
+    <section className="panel detail-grid">
+      {fields.map((f) => (
+        <Cell key={f.label} label={f.label} value={val(f.value)} />
+      ))}
+    </section>
   );
 }
 

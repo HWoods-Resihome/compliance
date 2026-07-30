@@ -1,39 +1,46 @@
 /**
  * HOA / Association extraction from ResiAIMS (Snowflake).
  *
- * Models the ResiAIMS "Association Details" record and its tabs:
- *   • HOA          — core association fields (this file models these in full,
- *                    matching the ResiAIMS UI: name, status, fax, EIN/TaxID,
- *                    invoice recovery, management company + 3 management POCs,
- *                    physical + local mailing address, and 3 points of contact)
- *   • Leasing Info — see LEASING columns (schema unconfirmed — see note below)
- *   • Amenities    — child rows
- *   • Access Codes — child rows (SENSITIVE)
- *   • Inspections  — child rows
- * plus the mapping of which properties belong to each association.
+ * Targets the real ResiAIMS star schema in Snowflake
+ * (default PROD_ANALYTICS.DBT_RESICAP), modeling the ResiAIMS
+ * "Association Details" record and its tabs:
+ *   • HOA          — DIM_HOA: core association fields, contacts, management
+ *                    company, assessment, and the physical address.
+ *   • Leasing Info — DIM_HOA leasing columns (approval / fees / pets).
+ *   • Amenities    — DIM_HOA amenity + utility + parking flag columns.
+ *   • Access Codes — FCT_HOA_ACCESS_CODE_ACCUM child rows (keyed by HOA_KEY).
+ *   • Inspections  — FCT_HOA_PROPERTY per-property inspection dates
+ *                    (chimney / dryer / HVAC / fire), surfaced on each mapped
+ *                    property.
+ * plus the mapping of which properties belong to each association
+ * (FCT_HOA_PROPERTY → DIM_PROPERTY).
  *
  * ─────────────────────────────────────────────────────────────────────────
- *  SCHEMA MAPPING — READ THIS BEFORE USE
+ *  SCHEMA MAPPING
  * ─────────────────────────────────────────────────────────────────────────
- * The HOA-tab field set below is modeled directly on the ResiAIMS
- * "Association Details" screen, so the *shape* is correct. The Snowflake
- * table/column NAMES are best-effort defaults and may differ in the account.
- * Every name is overridable via environment variables (see `.env.example` and
- * docs/INTEGRATIONS.md) so the real schema can be pointed at WITHOUT a code
- * change. To finalize:
- *   1. Confirm the real object names, e.g. in Snowflake:
- *        SHOW TABLES LIKE '%ASSOC%' IN DATABASE <db>;
- *        DESCRIBE TABLE <db>.<schema>.<associations_table>;
- *   2. Either edit the defaults below, or set the matching RESIAIMS_* env vars.
+ * Table and column names below are the real ResiAIMS warehouse names,
+ * confirmed against PROD_ANALYTICS.DBT_RESICAP. Every name stays overridable
+ * via environment variables (see `.env.example` and docs/INTEGRATIONS.md) so
+ * the schema can be repointed WITHOUT a code change if the warehouse layout
+ * shifts.
  *
- * The Leasing Info / Amenities / Access Codes / Inspections tab field lists
- * are modeled from their tab names only (those tabs were not yet inspected);
- * confirm/adjust their columns when their layouts are available.
+ * Grain / joins:
+ *   DIM_HOA           — one current row per association (SCD; CURRENT_FLAG='Y').
+ *                       HOA_KEY is the surrogate join key; HOA_ID the business id.
+ *   FCT_HOA_PROPERTY  — HOA_KEY ⇄ PROPERTY_KEY map (+ per-property inspections).
+ *   DIM_PROPERTY      — property dimension (SCD; CURRENT_FLAG='Y').
+ *   FCT_HOA_ACCESS_CODE_ACCUM — access-code rows by HOA_KEY.
+ *   FCT_HOA_ACCUM     — assessment rollup / association status by HOA_KEY.
  *
- * SQL safety: runtime filter *values* (association id) are always passed as
- * bound parameters (`?`). Identifiers (table/column names) cannot be bound, so
- * they come only from this fixed mapping and are validated against a strict
+ * SQL safety: runtime filter *values* (HOA_KEY) are always passed as bound
+ * parameters (`?`). Identifiers (table/column names) cannot be bound, so they
+ * come only from this fixed mapping and are validated against a strict
  * identifier pattern before being interpolated — never from user input.
+ *
+ * Sensitivity: access codes are sensitive, and DIM_HOA also stores HOA website
+ * credentials (WEBSITE_USERNAME / WEBSITE_PASSWORD). The password is
+ * intentionally never projected by this module. Treat every detail response as
+ * sensitive and keep the route auth-guarded.
  */
 
 import {
@@ -52,8 +59,8 @@ function env(name: string, fallback: string): string {
   return v && v.trim().length > 0 ? v.trim() : fallback;
 }
 
-const DB = env("RESIAIMS_DATABASE", env("SNOWFLAKE_DATABASE", "RESIAIMS"));
-const SCHEMA = env("RESIAIMS_SCHEMA", env("SNOWFLAKE_SCHEMA", "PUBLIC"));
+const DB = env("RESIAIMS_DATABASE", env("SNOWFLAKE_DATABASE", "PROD_ANALYTICS"));
+const SCHEMA = env("RESIAIMS_SCHEMA", env("SNOWFLAKE_SCHEMA", "DBT_RESICAP"));
 
 /** Strict identifier check: letters, digits, underscore, `$`, dot (for db.schema.table). */
 const IDENT = /^[A-Za-z_][A-Za-z0-9_$.]*$/;
@@ -79,138 +86,326 @@ function col(name: string): string {
 }
 
 const T = {
-  associations: table(env("RESIAIMS_ASSOCIATIONS_TABLE", "ASSOCIATIONS")),
-  amenities: table(env("RESIAIMS_AMENITIES_TABLE", "ASSOCIATION_AMENITIES")),
-  accessCodes: table(env("RESIAIMS_ACCESS_CODES_TABLE", "ASSOCIATION_ACCESS_CODES")),
-  inspections: table(env("RESIAIMS_INSPECTIONS_TABLE", "ASSOCIATION_INSPECTIONS")),
-  properties: table(env("RESIAIMS_PROPERTIES_TABLE", "PROPERTIES")),
+  hoa: table(env("RESIAIMS_HOA_TABLE", "DIM_HOA")),
+  hoaProperty: table(env("RESIAIMS_HOA_PROPERTY_TABLE", "FCT_HOA_PROPERTY")),
+  accessCodes: table(
+    env("RESIAIMS_ACCESS_CODES_TABLE", "FCT_HOA_ACCESS_CODE_ACCUM"),
+  ),
+  hoaAccum: table(env("RESIAIMS_HOA_ACCUM_TABLE", "FCT_HOA_ACCUM")),
+  property: table(env("RESIAIMS_PROPERTY_TABLE", "DIM_PROPERTY")),
+};
+
+/** SCD current-row flag column + value, shared by DIM_HOA and DIM_PROPERTY. */
+const CURRENT_FLAG_COL = env("RESIAIMS_CURRENT_FLAG_COL", "CURRENT_FLAG");
+const CURRENT_FLAG_VAL = env("RESIAIMS_CURRENT_FLAG_VAL", "Y");
+
+/** DIM_HOA columns (the HOA / Leasing / Amenities tabs). */
+const H = {
+  key: env("RESIAIMS_HOA_KEY_COL", "HOA_KEY"),
+  id: env("RESIAIMS_HOA_ID_COL", "HOA_ID"),
+  currentFlag: env("RESIAIMS_HOA_CURRENT_FLAG_COL", CURRENT_FLAG_COL),
+  name: env("RESIAIMS_HOA_NAME_COL", "HOA_NAME"),
+  address: env("RESIAIMS_HOA_ADDRESS_COL", "HOA_ADDRESS"),
+  city: env("RESIAIMS_HOA_CITY_COL", "HOA_CITY"),
+  state: env("RESIAIMS_HOA_STATE_COL", "HOA_STATE"),
+  zip: env("RESIAIMS_HOA_ZIP_COL", "HOA_ZIPCODE"),
+  websiteAddress: env("RESIAIMS_HOA_WEBSITE_COL", "WEBSITE_ADDRESS"),
+  websiteUsername: env("RESIAIMS_HOA_WEBSITE_USER_COL", "WEBSITE_USERNAME"),
+  accessCodesCompleted: env(
+    "RESIAIMS_HOA_ACCESS_CODES_COMPLETED_COL",
+    "ACCESS_CODES_COMPLETED",
+  ),
+  // Primary point of contact (POC_1_*)
+  pocName: env("RESIAIMS_HOA_POC_NAME_COL", "POC_1_NAME"),
+  pocTitle: env("RESIAIMS_HOA_POC_TITLE_COL", "POC_1_TITLE"),
+  pocPhone: env("RESIAIMS_HOA_POC_PHONE_COL", "POC_1_PHONE_NUMBER"),
+  pocEmail: env("RESIAIMS_HOA_POC_EMAIL_COL", "POC_1_EMAIL"),
+  // Secondary contact (CONTACT_*)
+  contactName: env("RESIAIMS_HOA_CONTACT_NAME_COL", "CONTACT_NAME"),
+  contactPhone: env("RESIAIMS_HOA_CONTACT_PHONE_COL", "CONTACT_PHONE"),
+  contactEmail: env("RESIAIMS_HOA_CONTACT_EMAIL_COL", "CONTACT_EMAIL"),
+  // Management company
+  mgmtCompany: env("RESIAIMS_HOA_MGMT_COMPANY_COL", "MANAGEMENT_COMPANY_NAME"),
+  mgmtContactName: env(
+    "RESIAIMS_HOA_MGMT_CONTACT_NAME_COL",
+    "MANAGEMENT_CONTACT_NAME",
+  ),
+  mgmtContactPhone: env(
+    "RESIAIMS_HOA_MGMT_CONTACT_PHONE_COL",
+    "MANAGEMENT_CONTACT_PHONE",
+  ),
+  mgmtEmail: env("RESIAIMS_HOA_MGMT_EMAIL_COL", "MANAGEMENT_EMAIL"),
+  mgmtAddress: env("RESIAIMS_HOA_MGMT_ADDRESS_COL", "MANAGEMENT_COMPANY_ADDRESS"),
+  mgmtCity: env("RESIAIMS_HOA_MGMT_CITY_COL", "MANAGEMENT_COMPANY_CITY"),
+  mgmtState: env("RESIAIMS_HOA_MGMT_STATE_COL", "MANAGEMENT_COMPANY_STATE"),
+  mgmtZip: env("RESIAIMS_HOA_MGMT_ZIP_COL", "MANAGEMENT_COMPANY_ZIP"),
+  mgmtPocName: env("RESIAIMS_HOA_MGMT_POC_NAME_COL", "MANAGEMENT_COMPANY_POC_1"),
+  mgmtPocTitle: env(
+    "RESIAIMS_HOA_MGMT_POC_TITLE_COL",
+    "MANAGEMENT_COMPANY_POC_1_TITLE",
+  ),
+  mgmtPocPhone: env(
+    "RESIAIMS_HOA_MGMT_POC_PHONE_COL",
+    "MANAGEMENT_COMPANY_POC_1_PHONE",
+  ),
+  mgmtPocEmail: env(
+    "RESIAIMS_HOA_MGMT_POC_EMAIL_COL",
+    "MANAGEMENT_COMPANY_POC_1_EMAIL",
+  ),
+  // Assessment
+  assessmentDues: env("RESIAIMS_HOA_ASSESSMENT_DUES_COL", "ASSESSMENT_DUES"),
+  assessmentFrequency: env(
+    "RESIAIMS_HOA_ASSESSMENT_FREQ_COL",
+    "ASSESSMENT_FREQUENCY",
+  ),
+  specialAssessmentDues: env(
+    "RESIAIMS_HOA_SPECIAL_ASSESSMENT_COL",
+    "SPECIAL_ASSESSMENT_DUES",
+  ),
+  fiscalYearStart: env("RESIAIMS_HOA_FISCAL_YEAR_COL", "FISCAL_YEAR_START"),
+  paymentWebsite: env("RESIAIMS_HOA_PAYMENT_WEBSITE_COL", "PAYMENT_WEBSITE"),
+};
+
+/** FCT_HOA_ACCUM columns (association status + assessment rollup). */
+const ACC = {
+  hoaKey: env("RESIAIMS_ACCUM_FK_COL", "HOA_KEY"),
+  status: env("RESIAIMS_ACCUM_STATUS_COL", "HOA_STATUS"),
+  totalAssessmentAmount: env(
+    "RESIAIMS_ACCUM_TOTAL_ASSESSMENT_COL",
+    "TOTAL_ASSESSMENT_AMOUNT",
+  ),
+  periodicity: env("RESIAIMS_ACCUM_PERIODICITY_COL", "PERIODICITY"),
+};
+
+/** FCT_HOA_ACCESS_CODE_ACCUM columns (Access Codes tab). */
+const AC = {
+  hoaKey: env("RESIAIMS_ACCESS_CODES_FK_COL", "HOA_KEY"),
+  accessFor: env("RESIAIMS_ACCESS_FOR_COL", "ACCESS_FOR"),
+  accessTo: env("RESIAIMS_ACCESS_TO_COL", "ACCESS_TO"),
+  available: env("RESIAIMS_ACCESS_AVAILABLE_COL", "ACCESS_AVAILABLE"),
+  control: env("RESIAIMS_ACCESS_CONTROL_COL", "ACCESS_CONTROL"),
+  controlCost: env("RESIAIMS_ACCESS_CONTROL_COST_COL", "ACCESS_CONTROL_COST"),
+  description: env("RESIAIMS_ACCESS_DESCRIPTION_COL", "ACCESS_DESCRIPTION"),
+  contactName: env("RESIAIMS_ACCESS_CONTACT_NAME_COL", "ACCESS_CONTACT_NAME"),
+  contactEmail: env("RESIAIMS_ACCESS_CONTACT_EMAIL_COL", "ACCESS_CONTACT_EMAIL"),
+  formExist: env("RESIAIMS_ACCESS_FORM_EXIST_COL", "ACCESS_FORM_EXIST"),
+  notes: env("RESIAIMS_ACCESS_NOTES_COL", "NOTES"),
+  position: env("RESIAIMS_ACCESS_POSITION_COL", "POSITION"),
+};
+
+/** FCT_HOA_PROPERTY columns (association ⇄ property map + inspections). */
+const HP = {
+  hoaKey: env("RESIAIMS_HOA_PROPERTY_FK_COL", "HOA_KEY"),
+  propertyKey: env("RESIAIMS_HOA_PROPERTY_PROP_KEY_COL", "PROPERTY_KEY"),
+  accountNumber: env("RESIAIMS_HOA_PROPERTY_ACCOUNT_COL", "ACCOUNT_NUMBER"),
+  status: env("RESIAIMS_HOA_PROPERTY_STATUS_COL", "STATUS"),
+  dueAmount: env("RESIAIMS_HOA_PROPERTY_DUE_COL", "DUE_AMOUNT"),
+  chimneyInspection: env(
+    "RESIAIMS_HOA_PROPERTY_CHIMNEY_COL",
+    "CHIMNEY_LAST_INSPECTION_DATE",
+  ),
+  dryerInspection: env(
+    "RESIAIMS_HOA_PROPERTY_DRYER_COL",
+    "DRYER_LAST_INSPECTION_DATE",
+  ),
+  hvacInspection: env(
+    "RESIAIMS_HOA_PROPERTY_HVAC_COL",
+    "HVAC_LAST_INSPECTION_DATE",
+  ),
+  fireInspection: env(
+    "RESIAIMS_HOA_PROPERTY_FIRE_COL",
+    "FIRE_LAST_INSPECTION_DATE",
+  ),
+};
+
+/** DIM_PROPERTY columns. */
+const P = {
+  key: env("RESIAIMS_PROPERTY_KEY_COL", "PROPERTY_KEY"),
+  currentFlag: env("RESIAIMS_PROPERTY_CURRENT_FLAG_COL", CURRENT_FLAG_COL),
+  fullAddress: env("RESIAIMS_PROPERTY_FULL_ADDRESS_COL", "FULL_ADDRESS"),
+  address: env("RESIAIMS_PROPERTY_ADDRESS_COL", "ADDRESS"),
+  state: env("RESIAIMS_PROPERTY_STATE_COL", "PROPERTY_STATE"),
+  zip: env("RESIAIMS_PROPERTY_ZIP_COL", "ZIPCODE"),
+  status: env("RESIAIMS_PROPERTY_STATUS_COL", "PROPERTY_STATUS"),
 };
 
 /**
- * Columns on the ASSOCIATIONS record — the HOA tab. Modeled on the ResiAIMS
- * "Association Details" screen. Points of contact (poc1..3) and management
- * company POCs (mgmtPoc1..3) are fixed slots on the record, mirroring the UI.
+ * Flag columns rendered as label/value lists. DIM_HOA stores these as free
+ * text (typically Y/N, but sometimes descriptive), so we surface the raw
+ * value and let the UI decide. Grouped to mirror the ResiAIMS tabs.
  */
-const A = {
-  id: env("RESIAIMS_ASSOC_ID_COL", "ASSOCIATION_ID"),
-  name: env("RESIAIMS_ASSOC_NAME_COL", "ASSOCIATION_NAME"),
-  status: env("RESIAIMS_ASSOC_STATUS_COL", "STATUS"),
-  fax: env("RESIAIMS_ASSOC_FAX_COL", "FAX"),
-  einTaxId: env("RESIAIMS_ASSOC_EIN_COL", "EIN_TAX_ID"),
-  invoiceRecovery: env("RESIAIMS_ASSOC_INVOICE_RECOVERY_COL", "INVOICE_RECOVERY"),
-  managementCompany: env("RESIAIMS_ASSOC_MGMT_COL", "MANAGEMENT_COMPANY"),
-  mgmtPoc1: env("RESIAIMS_ASSOC_MGMT_POC1_COL", "MGMT_COMPANY_POC1"),
-  mgmtPoc2: env("RESIAIMS_ASSOC_MGMT_POC2_COL", "MGMT_COMPANY_POC2"),
-  mgmtPoc3: env("RESIAIMS_ASSOC_MGMT_POC3_COL", "MGMT_COMPANY_POC3"),
-  // Physical address
-  physName: env("RESIAIMS_ASSOC_PHYS_NAME_COL", "PHYSICAL_NAME"),
-  physAddress: env("RESIAIMS_ASSOC_PHYS_ADDRESS_COL", "PHYSICAL_ADDRESS"),
-  physCity: env("RESIAIMS_ASSOC_PHYS_CITY_COL", "PHYSICAL_CITY"),
-  physState: env("RESIAIMS_ASSOC_PHYS_STATE_COL", "PHYSICAL_STATE"),
-  physZip: env("RESIAIMS_ASSOC_PHYS_ZIP_COL", "PHYSICAL_ZIP"),
-  // Local mailing address
-  mailName: env("RESIAIMS_ASSOC_MAIL_NAME_COL", "MAILING_NAME"),
-  mailAddress: env("RESIAIMS_ASSOC_MAIL_ADDRESS_COL", "MAILING_ADDRESS"),
-  mailCity: env("RESIAIMS_ASSOC_MAIL_CITY_COL", "MAILING_CITY"),
-  mailState: env("RESIAIMS_ASSOC_MAIL_STATE_COL", "MAILING_STATE"),
-  mailZip: env("RESIAIMS_ASSOC_MAIL_ZIP_COL", "MAILING_ZIP"),
-  // Point of contact 1
-  poc1Name: env("RESIAIMS_ASSOC_POC1_NAME_COL", "POC1_NAME"),
-  poc1Title: env("RESIAIMS_ASSOC_POC1_TITLE_COL", "POC1_TITLE"),
-  poc1Email: env("RESIAIMS_ASSOC_POC1_EMAIL_COL", "POC1_EMAIL"),
-  poc1Phone: env("RESIAIMS_ASSOC_POC1_PHONE_COL", "POC1_PHONE"),
-  poc1Ext: env("RESIAIMS_ASSOC_POC1_EXT_COL", "POC1_EXT"),
-  // Point of contact 2
-  poc2Name: env("RESIAIMS_ASSOC_POC2_NAME_COL", "POC2_NAME"),
-  poc2Title: env("RESIAIMS_ASSOC_POC2_TITLE_COL", "POC2_TITLE"),
-  poc2Email: env("RESIAIMS_ASSOC_POC2_EMAIL_COL", "POC2_EMAIL"),
-  poc2Phone: env("RESIAIMS_ASSOC_POC2_PHONE_COL", "POC2_PHONE"),
-  poc2Ext: env("RESIAIMS_ASSOC_POC2_EXT_COL", "POC2_EXT"),
-  // Point of contact 3
-  poc3Name: env("RESIAIMS_ASSOC_POC3_NAME_COL", "POC3_NAME"),
-  poc3Title: env("RESIAIMS_ASSOC_POC3_TITLE_COL", "POC3_TITLE"),
-  poc3Email: env("RESIAIMS_ASSOC_POC3_EMAIL_COL", "POC3_EMAIL"),
-  poc3Phone: env("RESIAIMS_ASSOC_POC3_PHONE_COL", "POC3_PHONE"),
-  poc3Ext: env("RESIAIMS_ASSOC_POC3_EXT_COL", "POC3_EXT"),
+const AMENITY_FLAGS: Array<[keyof typeof AMENITY_COLS, string]> = [
+  ["swimmingPool", "Swimming pool"],
+  ["tennisCourt", "Tennis court"],
+  ["fitnessCenter", "Fitness center"],
+  ["golfCourse", "Golf course"],
+  ["clubHouse", "Community club house"],
+  ["archReview", "Architectural review committee"],
+];
+const AMENITY_COLS = {
+  swimmingPool: env("RESIAIMS_HOA_POOL_COL", "SWIMMING_POOL"),
+  tennisCourt: env("RESIAIMS_HOA_TENNIS_COL", "TENNIS_COURT"),
+  fitnessCenter: env("RESIAIMS_HOA_FITNESS_COL", "FITNESS_CENTER"),
+  golfCourse: env("RESIAIMS_HOA_GOLF_COL", "GOLF_COURSE"),
+  clubHouse: env("RESIAIMS_HOA_CLUBHOUSE_COL", "COMMUNITY_CLUB_HOUSE"),
+  archReview: env("RESIAIMS_HOA_ARCH_REVIEW_COL", "ARCH_REVIEW_COMMITTEE"),
 };
 
-const AMEN = {
-  assocFk: env("RESIAIMS_AMENITIES_FK_COL", "ASSOCIATION_ID"),
-  name: env("RESIAIMS_AMENITIES_NAME_COL", "AMENITY_NAME"),
-  description: env("RESIAIMS_AMENITIES_DESC_COL", "DESCRIPTION"),
+const UTILITY_FLAGS: Array<[keyof typeof UTILITY_COLS, string]> = [
+  ["gas", "Gas"],
+  ["electricity", "Electricity"],
+  ["water", "Water"],
+  ["sewer", "Sewer"],
+  ["trash", "Trash"],
+  ["cableInternet", "Cable / internet"],
+  ["pestControl", "Pest control"],
+  ["landscaping", "Landscaping"],
+  ["snowRemoval", "Snow removal"],
+  ["parkingAssigned", "Parking assigned"],
+  ["parkingFee", "Parking fee"],
+  ["assignedMailbox", "Assigned mailbox"],
+  ["mailboxAccess", "Mailbox access"],
+];
+const UTILITY_COLS = {
+  gas: env("RESIAIMS_HOA_GAS_COL", "GAS"),
+  electricity: env("RESIAIMS_HOA_ELECTRICITY_COL", "ELECTRICITY"),
+  water: env("RESIAIMS_HOA_WATER_COL", "WATER"),
+  sewer: env("RESIAIMS_HOA_SEWER_COL", "SEWER"),
+  trash: env("RESIAIMS_HOA_TRASH_COL", "TRASH"),
+  cableInternet: env("RESIAIMS_HOA_CABLE_COL", "CABEL_INTERNET"),
+  pestControl: env("RESIAIMS_HOA_PEST_COL", "PEST_CONTROL"),
+  landscaping: env("RESIAIMS_HOA_LANDSCAPING_COL", "LANDSCAPING"),
+  snowRemoval: env("RESIAIMS_HOA_SNOW_COL", "SNOW_REMOVAL"),
+  parkingAssigned: env("RESIAIMS_HOA_PARKING_ASSIGNED_COL", "PARKING_ASSIGNED"),
+  parkingFee: env("RESIAIMS_HOA_PARKING_FEE_COL", "PARKING_FEE"),
+  assignedMailbox: env("RESIAIMS_HOA_ASSIGNED_MAILBOX_COL", "ASSIGNED_MAILBOX"),
+  mailboxAccess: env("RESIAIMS_HOA_MAILBOX_ACCESS_COL", "MAILBOX_ACCESS"),
 };
 
-const AC = {
-  assocFk: env("RESIAIMS_ACCESS_CODES_FK_COL", "ASSOCIATION_ID"),
-  label: env("RESIAIMS_ACCESS_CODES_LABEL_COL", "LABEL"),
-  code: env("RESIAIMS_ACCESS_CODES_CODE_COL", "CODE"),
-  notes: env("RESIAIMS_ACCESS_CODES_NOTES_COL", "NOTES"),
-};
-
-const INS = {
-  assocFk: env("RESIAIMS_INSPECTIONS_FK_COL", "ASSOCIATION_ID"),
-  type: env("RESIAIMS_INSPECTIONS_TYPE_COL", "INSPECTION_TYPE"),
-  status: env("RESIAIMS_INSPECTIONS_STATUS_COL", "STATUS"),
-  scheduledDate: env("RESIAIMS_INSPECTIONS_SCHEDULED_COL", "SCHEDULED_DATE"),
-  completedDate: env("RESIAIMS_INSPECTIONS_COMPLETED_COL", "COMPLETED_DATE"),
-  result: env("RESIAIMS_INSPECTIONS_RESULT_COL", "RESULT"),
-};
-
-const P = {
-  id: env("RESIAIMS_PROPERTY_ID_COL", "PROPERTY_ID"),
-  assocFk: env("RESIAIMS_PROPERTY_ASSOC_FK_COL", "ASSOCIATION_ID"),
-  address: env("RESIAIMS_PROPERTY_ADDRESS_COL", "ADDRESS"),
-  city: env("RESIAIMS_PROPERTY_CITY_COL", "CITY"),
-  state: env("RESIAIMS_PROPERTY_STATE_COL", "STATE"),
-  zip: env("RESIAIMS_PROPERTY_ZIP_COL", "ZIP"),
-  status: env("RESIAIMS_PROPERTY_STATUS_COL", "STATUS"),
+const LEASING_FLAGS: Array<[keyof typeof LEASING_COLS, string]> = [
+  ["leasingPermitted", "Leasing permitted"],
+  ["tenantApproval", "Tenant approval required"],
+  ["tenantApplication", "Tenant application required"],
+  ["leaseLicense", "Lease license required"],
+  ["leaseApproval", "Lease approval required"],
+  ["appFeeRequired", "Association app fee required"],
+  ["appFee", "Association app fee"],
+  ["backgroundCheck", "Background check required"],
+  ["backgroundCheckResp", "Background check responsibility"],
+  ["moveInFeeRequired", "Move-in fee required"],
+  ["moveInFeeAmount", "Move-in fee amount"],
+  ["petAllowed", "Pets allowed"],
+  ["petRestrictions", "Pet restrictions"],
+];
+const LEASING_COLS = {
+  leasingPermitted: env("RESIAIMS_HOA_LEASING_PERMITTED_COL", "LEASING_PERMITTED"),
+  tenantApproval: env(
+    "RESIAIMS_HOA_TENANT_APPROVAL_COL",
+    "TENANT_APPROVAL_REQUIRED",
+  ),
+  tenantApplication: env(
+    "RESIAIMS_HOA_TENANT_APPLICATION_COL",
+    "TENANT_APPLICATION_REQUIRED",
+  ),
+  leaseLicense: env("RESIAIMS_HOA_LEASE_LICENSE_COL", "LEASE_LICENSE_REQUIRED"),
+  leaseApproval: env("RESIAIMS_HOA_LEASE_APPROVAL_COL", "LEASE_APPROVAL_REQUIRED"),
+  appFeeRequired: env(
+    "RESIAIMS_HOA_APP_FEE_REQUIRED_COL",
+    "ASSOCIATION_APP_FEE_REQUIRED",
+  ),
+  appFee: env("RESIAIMS_HOA_APP_FEE_COL", "ASSOCIATION_APP_FEE"),
+  backgroundCheck: env(
+    "RESIAIMS_HOA_BACKGROUND_CHECK_COL",
+    "BACKGROUND_CHECK_REQUIRED",
+  ),
+  backgroundCheckResp: env(
+    "RESIAIMS_HOA_BACKGROUND_CHECK_RESP_COL",
+    "BACKGROUND_CHECK_RESPONSIBILITY",
+  ),
+  moveInFeeRequired: env(
+    "RESIAIMS_HOA_MOVE_IN_FEE_REQUIRED_COL",
+    "ASSOCIATION_MOVE_IN_FEE_REQUIRED",
+  ),
+  moveInFeeAmount: env(
+    "RESIAIMS_HOA_MOVE_IN_FEE_AMOUNT_COL",
+    "ASSOCIATION_MOVE_IN_FEE_AMOUNT",
+  ),
+  petAllowed: env("RESIAIMS_HOA_PET_ALLOWED_COL", "PET_ALLOWED"),
+  petRestrictions: env("RESIAIMS_HOA_PET_RESTRICTIONS_COL", "PET_RESTRICTIONS"),
 };
 
 // ── Types ───────────────────────────────────────────────────────────────
 
 export type Address = {
-  name: string | null;
   address: string | null;
   city: string | null;
   state: string | null;
   zip: string | null;
 };
 
-export type PointOfContact = {
+export type Contact = {
   name: string | null;
   title: string | null;
-  email: string | null;
   phone: string | null;
-  ext: string | null;
+  email: string | null;
 };
 
-export type Amenity = { name: string | null; description: string | null };
+export type Field = { label: string; value: string | null };
+
+export type Management = {
+  company: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  email: string | null;
+  address: Address;
+  poc: Contact;
+};
+
+export type Assessment = {
+  dues: string | null;
+  frequency: string | null;
+  specialAssessmentDues: string | null;
+  fiscalYearStart: string | null;
+  paymentWebsite: string | null;
+  totalAssessmentAmount: string | null;
+  periodicity: string | null;
+};
 
 export type AccessCode = {
-  label: string | null;
-  code: string | null;
+  accessFor: string | null;
+  accessTo: string | null;
+  available: string | null;
+  control: string | null;
+  controlCost: string | null;
+  description: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  formExist: string | null;
   notes: string | null;
 };
 
-export type Inspection = {
-  type: string | null;
-  status: string | null;
-  scheduledDate: string | null;
-  completedDate: string | null;
-  result: string | null;
+export type PropertyInspections = {
+  chimney: string | null;
+  dryer: string | null;
+  hvac: string | null;
+  fire: string | null;
 };
 
 export type LinkedProperty = {
-  id: string | null;
+  propertyKey: string | null;
   address: string | null;
-  city: string | null;
   state: string | null;
   zip: string | null;
-  status: string | null;
+  propertyStatus: string | null;
+  hoaPropertyStatus: string | null;
+  accountNumber: string | null;
+  dueAmount: string | null;
+  inspections: PropertyInspections;
 };
 
 export type AssociationSummary = {
   id: string;
+  hoaId: string | null;
   name: string | null;
   status: string | null;
   managementCompany: string | null;
@@ -221,28 +416,31 @@ export type AssociationSummary = {
 
 export type Association = {
   id: string;
+  hoaId: string | null;
   name: string | null;
   status: string | null;
-  fax: string | null;
-  einTaxId: string | null;
-  invoiceRecovery: string | null;
-  managementCompany: string | null;
-  managementPocs: string[];
-  physicalAddress: Address;
-  mailingAddress: Address;
-  pointsOfContact: PointOfContact[];
-  amenities: Amenity[];
+  address: Address;
+  website: { address: string | null; username: string | null };
+  accessCodesCompleted: string | null;
+  primaryContact: Contact;
+  altContact: { name: string | null; phone: string | null; email: string | null };
+  management: Management;
+  assessment: Assessment;
+  leasing: Field[];
+  amenities: Field[];
+  utilities: Field[];
   accessCodes: AccessCode[];
-  inspections: Inspection[];
   properties: LinkedProperty[];
   propertyCount: number;
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
+/** Normalize a cell to a trimmed string, or null when empty/blank. */
 function str(v: unknown): string | null {
-  if (v === null || v === undefined || v === "") return null;
-  return String(v);
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s.length > 0 ? s : null;
 }
 
 function num(v: unknown): number {
@@ -255,36 +453,53 @@ function pick(row: SnowflakeRow, key: string): unknown {
   return row[key.toUpperCase()] ?? row[key.toLowerCase()] ?? row[key];
 }
 
+/** Build a label/value list from a flag-column group, keeping only set values. */
+function flagFields(
+  row: SnowflakeRow,
+  cols: Record<string, string>,
+  spec: Array<[string, string]>,
+): Field[] {
+  const out: Field[] = [];
+  for (const [key, label] of spec) {
+    const value = str(pick(row, cols[key]));
+    if (value !== null) out.push({ label, value });
+  }
+  return out;
+}
+
 // ── Queries ────────────────────────────────────────────────────────────
 
 /**
- * List all associations with a count of the properties mapped to each.
+ * List all current associations with a count of the properties mapped to each.
  */
 export async function listAssociations(
   limit = 500,
 ): Promise<AssociationSummary[]> {
-  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 5000);
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 10000);
 
   const sql = `
     SELECT
-      a.${col(A.id)}                AS id,
-      a.${col(A.name)}              AS name,
-      a.${col(A.status)}            AS status,
-      a.${col(A.managementCompany)} AS management_company,
-      a.${col(A.physCity)}          AS city,
-      a.${col(A.physState)}         AS state,
-      COUNT(p.${col(P.id)})         AS property_count
-    FROM ${T.associations} a
-    LEFT JOIN ${T.properties} p
-      ON p.${col(P.assocFk)} = a.${col(A.id)}
-    GROUP BY 1, 2, 3, 4, 5, 6
+      h.${col(H.key)}          AS id,
+      h.${col(H.id)}           AS hoa_id,
+      h.${col(H.name)}         AS name,
+      acc.${col(ACC.status)}   AS status,
+      h.${col(H.mgmtCompany)}  AS management_company,
+      h.${col(H.city)}         AS city,
+      h.${col(H.state)}        AS state,
+      COUNT(DISTINCT m.${col(HP.propertyKey)}) AS property_count
+    FROM ${T.hoa} h
+    LEFT JOIN ${T.hoaProperty} m ON m.${col(HP.hoaKey)} = h.${col(H.key)}
+    LEFT JOIN ${T.hoaAccum} acc  ON acc.${col(ACC.hoaKey)} = h.${col(H.key)}
+    WHERE h.${col(H.currentFlag)} = ?
+    GROUP BY 1, 2, 3, 4, 5, 6, 7
     ORDER BY name
     LIMIT ${safeLimit}
   `;
 
-  const rows = await snowflakeQuery(sql);
+  const rows = await snowflakeQuery(sql, [CURRENT_FLAG_VAL]);
   return rows.map((r) => ({
     id: String(pick(r, "id") ?? ""),
+    hoaId: str(pick(r, "hoa_id")),
     name: str(pick(r, "name")),
     status: str(pick(r, "status")),
     managementCompany: str(pick(r, "management_company")),
@@ -295,134 +510,158 @@ export async function listAssociations(
 }
 
 /**
- * Full detail for one association: the HOA-tab record plus amenities, access
- * codes, inspections and the properties mapped to it. Filtered by bound id.
- * Returns null if no association matches.
+ * Full detail for one association (by HOA_KEY): the HOA-tab record plus
+ * leasing, amenities, access codes and the properties mapped to it (with
+ * per-property inspection dates). Filtered by bound key. Returns null if none.
  */
 export async function getAssociation(id: string): Promise<Association | null> {
   const headSql = `
     SELECT
-      ${col(A.id)} AS id, ${col(A.name)} AS name, ${col(A.status)} AS status,
-      ${col(A.fax)} AS fax, ${col(A.einTaxId)} AS ein_tax_id,
-      ${col(A.invoiceRecovery)} AS invoice_recovery,
-      ${col(A.managementCompany)} AS management_company,
-      ${col(A.mgmtPoc1)} AS mgmt_poc1, ${col(A.mgmtPoc2)} AS mgmt_poc2, ${col(A.mgmtPoc3)} AS mgmt_poc3,
-      ${col(A.physName)} AS phys_name, ${col(A.physAddress)} AS phys_address,
-      ${col(A.physCity)} AS phys_city, ${col(A.physState)} AS phys_state, ${col(A.physZip)} AS phys_zip,
-      ${col(A.mailName)} AS mail_name, ${col(A.mailAddress)} AS mail_address,
-      ${col(A.mailCity)} AS mail_city, ${col(A.mailState)} AS mail_state, ${col(A.mailZip)} AS mail_zip,
-      ${col(A.poc1Name)} AS poc1_name, ${col(A.poc1Title)} AS poc1_title, ${col(A.poc1Email)} AS poc1_email, ${col(A.poc1Phone)} AS poc1_phone, ${col(A.poc1Ext)} AS poc1_ext,
-      ${col(A.poc2Name)} AS poc2_name, ${col(A.poc2Title)} AS poc2_title, ${col(A.poc2Email)} AS poc2_email, ${col(A.poc2Phone)} AS poc2_phone, ${col(A.poc2Ext)} AS poc2_ext,
-      ${col(A.poc3Name)} AS poc3_name, ${col(A.poc3Title)} AS poc3_title, ${col(A.poc3Email)} AS poc3_email, ${col(A.poc3Phone)} AS poc3_phone, ${col(A.poc3Ext)} AS poc3_ext
-    FROM ${T.associations}
-    WHERE ${col(A.id)} = ?
+      h.${col(H.key)} AS id, h.${col(H.id)} AS hoa_id, h.${col(H.name)} AS name,
+      h.${col(H.address)} AS address, h.${col(H.city)} AS city,
+      h.${col(H.state)} AS state, h.${col(H.zip)} AS zip,
+      h.${col(H.websiteAddress)} AS website_address,
+      h.${col(H.websiteUsername)} AS website_username,
+      h.${col(H.accessCodesCompleted)} AS access_codes_completed,
+      h.${col(H.pocName)} AS poc_name, h.${col(H.pocTitle)} AS poc_title,
+      h.${col(H.pocPhone)} AS poc_phone, h.${col(H.pocEmail)} AS poc_email,
+      h.${col(H.contactName)} AS contact_name, h.${col(H.contactPhone)} AS contact_phone,
+      h.${col(H.contactEmail)} AS contact_email,
+      h.${col(H.mgmtCompany)} AS mgmt_company, h.${col(H.mgmtContactName)} AS mgmt_contact_name,
+      h.${col(H.mgmtContactPhone)} AS mgmt_contact_phone, h.${col(H.mgmtEmail)} AS mgmt_email,
+      h.${col(H.mgmtAddress)} AS mgmt_address, h.${col(H.mgmtCity)} AS mgmt_city,
+      h.${col(H.mgmtState)} AS mgmt_state, h.${col(H.mgmtZip)} AS mgmt_zip,
+      h.${col(H.mgmtPocName)} AS mgmt_poc_name, h.${col(H.mgmtPocTitle)} AS mgmt_poc_title,
+      h.${col(H.mgmtPocPhone)} AS mgmt_poc_phone, h.${col(H.mgmtPocEmail)} AS mgmt_poc_email,
+      h.${col(H.assessmentDues)} AS assessment_dues,
+      h.${col(H.assessmentFrequency)} AS assessment_frequency,
+      h.${col(H.specialAssessmentDues)} AS special_assessment_dues,
+      h.${col(H.fiscalYearStart)} AS fiscal_year_start,
+      h.${col(H.paymentWebsite)} AS payment_website,
+      acc.${col(ACC.status)} AS status,
+      acc.${col(ACC.totalAssessmentAmount)} AS total_assessment_amount,
+      acc.${col(ACC.periodicity)} AS periodicity,
+      ${amenityCols("h")},
+      ${utilityCols("h")},
+      ${leasingCols("h")}
+    FROM ${T.hoa} h
+    LEFT JOIN ${T.hoaAccum} acc ON acc.${col(ACC.hoaKey)} = h.${col(H.key)}
+    WHERE h.${col(H.key)} = ? AND h.${col(H.currentFlag)} = ?
     LIMIT 1
   `;
 
-  const [head] = await snowflakeQuery(headSql, [id]);
+  const [head] = await snowflakeQuery(headSql, [id, CURRENT_FLAG_VAL]);
   if (!head) return null;
 
-  const [amenities, accessCodes, inspections, properties] = await Promise.all([
-    getAmenities(id),
+  const [accessCodes, properties] = await Promise.all([
     getAccessCodes(id),
-    getInspections(id),
     getPropertiesForAssociation(id),
   ]);
 
-  const poc = (n: 1 | 2 | 3): PointOfContact => ({
-    name: str(pick(head, `poc${n}_name`)),
-    title: str(pick(head, `poc${n}_title`)),
-    email: str(pick(head, `poc${n}_email`)),
-    phone: str(pick(head, `poc${n}_phone`)),
-    ext: str(pick(head, `poc${n}_ext`)),
-  });
-  const hasPoc = (c: PointOfContact) =>
-    c.name || c.title || c.email || c.phone || c.ext;
-
-  const managementPocs = [
-    str(pick(head, "mgmt_poc1")),
-    str(pick(head, "mgmt_poc2")),
-    str(pick(head, "mgmt_poc3")),
-  ].filter((v): v is string => !!v);
-
   return {
     id: String(pick(head, "id") ?? id),
+    hoaId: str(pick(head, "hoa_id")),
     name: str(pick(head, "name")),
     status: str(pick(head, "status")),
-    fax: str(pick(head, "fax")),
-    einTaxId: str(pick(head, "ein_tax_id")),
-    invoiceRecovery: str(pick(head, "invoice_recovery")),
-    managementCompany: str(pick(head, "management_company")),
-    managementPocs,
-    physicalAddress: {
-      name: str(pick(head, "phys_name")),
-      address: str(pick(head, "phys_address")),
-      city: str(pick(head, "phys_city")),
-      state: str(pick(head, "phys_state")),
-      zip: str(pick(head, "phys_zip")),
+    address: {
+      address: str(pick(head, "address")),
+      city: str(pick(head, "city")),
+      state: str(pick(head, "state")),
+      zip: str(pick(head, "zip")),
     },
-    mailingAddress: {
-      name: str(pick(head, "mail_name")),
-      address: str(pick(head, "mail_address")),
-      city: str(pick(head, "mail_city")),
-      state: str(pick(head, "mail_state")),
-      zip: str(pick(head, "mail_zip")),
+    website: {
+      address: str(pick(head, "website_address")),
+      username: str(pick(head, "website_username")),
     },
-    pointsOfContact: [poc(1), poc(2), poc(3)].filter(hasPoc),
-    amenities,
+    accessCodesCompleted: str(pick(head, "access_codes_completed")),
+    primaryContact: {
+      name: str(pick(head, "poc_name")),
+      title: str(pick(head, "poc_title")),
+      phone: str(pick(head, "poc_phone")),
+      email: str(pick(head, "poc_email")),
+    },
+    altContact: {
+      name: str(pick(head, "contact_name")),
+      phone: str(pick(head, "contact_phone")),
+      email: str(pick(head, "contact_email")),
+    },
+    management: {
+      company: str(pick(head, "mgmt_company")),
+      contactName: str(pick(head, "mgmt_contact_name")),
+      contactPhone: str(pick(head, "mgmt_contact_phone")),
+      email: str(pick(head, "mgmt_email")),
+      address: {
+        address: str(pick(head, "mgmt_address")),
+        city: str(pick(head, "mgmt_city")),
+        state: str(pick(head, "mgmt_state")),
+        zip: str(pick(head, "mgmt_zip")),
+      },
+      poc: {
+        name: str(pick(head, "mgmt_poc_name")),
+        title: str(pick(head, "mgmt_poc_title")),
+        phone: str(pick(head, "mgmt_poc_phone")),
+        email: str(pick(head, "mgmt_poc_email")),
+      },
+    },
+    assessment: {
+      dues: str(pick(head, "assessment_dues")),
+      frequency: str(pick(head, "assessment_frequency")),
+      specialAssessmentDues: str(pick(head, "special_assessment_dues")),
+      fiscalYearStart: str(pick(head, "fiscal_year_start")),
+      paymentWebsite: str(pick(head, "payment_website")),
+      totalAssessmentAmount: str(pick(head, "total_assessment_amount")),
+      periodicity: str(pick(head, "periodicity")),
+    },
+    leasing: flagFields(head, LEASING_COLS, LEASING_FLAGS),
+    amenities: flagFields(head, AMENITY_COLS, AMENITY_FLAGS),
+    utilities: flagFields(head, UTILITY_COLS, UTILITY_FLAGS),
     accessCodes,
-    inspections,
     properties,
     propertyCount: properties.length,
   };
 }
 
-async function getAmenities(id: string): Promise<Amenity[]> {
-  const sql = `
-    SELECT ${col(AMEN.name)} AS name, ${col(AMEN.description)} AS description
-    FROM ${T.amenities}
-    WHERE ${col(AMEN.assocFk)} = ?
-    ORDER BY name
-  `;
-  const rows = await snowflakeQuery(sql, [id]);
-  return rows.map((r) => ({
-    name: str(pick(r, "name")),
-    description: str(pick(r, "description")),
-  }));
+/** SELECT fragment for the amenity flag columns, aliased to their raw names. */
+function amenityCols(alias: string): string {
+  return AMENITY_FLAGS.map(
+    ([key]) => `${alias}.${col(AMENITY_COLS[key])} AS ${col(AMENITY_COLS[key])}`,
+  ).join(", ");
+}
+function utilityCols(alias: string): string {
+  return UTILITY_FLAGS.map(
+    ([key]) => `${alias}.${col(UTILITY_COLS[key])} AS ${col(UTILITY_COLS[key])}`,
+  ).join(", ");
+}
+function leasingCols(alias: string): string {
+  return LEASING_FLAGS.map(
+    ([key]) => `${alias}.${col(LEASING_COLS[key])} AS ${col(LEASING_COLS[key])}`,
+  ).join(", ");
 }
 
 async function getAccessCodes(id: string): Promise<AccessCode[]> {
   const sql = `
-    SELECT ${col(AC.label)} AS label, ${col(AC.code)} AS code, ${col(AC.notes)} AS notes
+    SELECT
+      ${col(AC.accessFor)} AS access_for, ${col(AC.accessTo)} AS access_to,
+      ${col(AC.available)} AS available, ${col(AC.control)} AS control,
+      ${col(AC.controlCost)} AS control_cost, ${col(AC.description)} AS description,
+      ${col(AC.contactName)} AS contact_name, ${col(AC.contactEmail)} AS contact_email,
+      ${col(AC.formExist)} AS form_exist, ${col(AC.notes)} AS notes
     FROM ${T.accessCodes}
-    WHERE ${col(AC.assocFk)} = ?
-    ORDER BY label
+    WHERE ${col(AC.hoaKey)} = ?
+    ORDER BY ${col(AC.position)}
   `;
   const rows = await snowflakeQuery(sql, [id]);
   return rows.map((r) => ({
-    label: str(pick(r, "label")),
-    code: str(pick(r, "code")),
+    accessFor: str(pick(r, "access_for")),
+    accessTo: str(pick(r, "access_to")),
+    available: str(pick(r, "available")),
+    control: str(pick(r, "control")),
+    controlCost: str(pick(r, "control_cost")),
+    description: str(pick(r, "description")),
+    contactName: str(pick(r, "contact_name")),
+    contactEmail: str(pick(r, "contact_email")),
+    formExist: str(pick(r, "form_exist")),
     notes: str(pick(r, "notes")),
-  }));
-}
-
-async function getInspections(id: string): Promise<Inspection[]> {
-  const sql = `
-    SELECT ${col(INS.type)} AS type, ${col(INS.status)} AS status,
-           ${col(INS.scheduledDate)} AS scheduled_date,
-           ${col(INS.completedDate)} AS completed_date,
-           ${col(INS.result)} AS result
-    FROM ${T.inspections}
-    WHERE ${col(INS.assocFk)} = ?
-    ORDER BY scheduled_date DESC
-  `;
-  const rows = await snowflakeQuery(sql, [id]);
-  return rows.map((r) => ({
-    type: str(pick(r, "type")),
-    status: str(pick(r, "status")),
-    scheduledDate: str(pick(r, "scheduled_date")),
-    completedDate: str(pick(r, "completed_date")),
-    result: str(pick(r, "result")),
   }));
 }
 
@@ -431,57 +670,94 @@ export async function getPropertiesForAssociation(
   id: string,
 ): Promise<LinkedProperty[]> {
   const sql = `
-    SELECT ${col(P.id)} AS id, ${col(P.address)} AS address,
-           ${col(P.city)} AS city, ${col(P.state)} AS state,
-           ${col(P.zip)} AS zip, ${col(P.status)} AS status
-    FROM ${T.properties}
-    WHERE ${col(P.assocFk)} = ?
-    ORDER BY address
+    SELECT
+      m.${col(HP.propertyKey)} AS property_key,
+      p.${col(P.fullAddress)}  AS full_address,
+      p.${col(P.state)}        AS state,
+      p.${col(P.zip)}          AS zip,
+      p.${col(P.status)}       AS property_status,
+      m.${col(HP.status)}      AS hoa_property_status,
+      m.${col(HP.accountNumber)} AS account_number,
+      m.${col(HP.dueAmount)}   AS due_amount,
+      m.${col(HP.chimneyInspection)} AS chimney_inspection,
+      m.${col(HP.dryerInspection)}   AS dryer_inspection,
+      m.${col(HP.hvacInspection)}    AS hvac_inspection,
+      m.${col(HP.fireInspection)}    AS fire_inspection
+    FROM ${T.hoaProperty} m
+    LEFT JOIN ${T.property} p
+      ON p.${col(P.key)} = m.${col(HP.propertyKey)} AND p.${col(P.currentFlag)} = ?
+    WHERE m.${col(HP.hoaKey)} = ?
+    ORDER BY full_address
   `;
-  const rows = await snowflakeQuery(sql, [id]);
+  const rows = await snowflakeQuery(sql, [CURRENT_FLAG_VAL, id]);
   return rows.map((r) => ({
-    id: str(pick(r, "id")),
-    address: str(pick(r, "address")),
-    city: str(pick(r, "city")),
+    propertyKey: str(pick(r, "property_key")),
+    address: str(pick(r, "full_address")),
     state: str(pick(r, "state")),
     zip: str(pick(r, "zip")),
-    status: str(pick(r, "status")),
+    propertyStatus: str(pick(r, "property_status")),
+    hoaPropertyStatus: str(pick(r, "hoa_property_status")),
+    accountNumber: str(pick(r, "account_number")),
+    dueAmount: str(pick(r, "due_amount")),
+    inspections: {
+      chimney: str(pick(r, "chimney_inspection")),
+      dryer: str(pick(r, "dryer_inspection")),
+      hvac: str(pick(r, "hvac_inspection")),
+      fire: str(pick(r, "fire_inspection")),
+    },
   }));
 }
 
 /**
  * The full flat property→association mapping across every association — one
- * row per property, suitable for exporting the "which properties go to which
- * association" join in a single pull.
+ * row per mapped property, suitable for exporting the "which properties go to
+ * which association" join in a single pull.
  */
 export async function getPropertyAssociationMap(
   limit = 100000,
 ): Promise<
   Array<{
-    propertyId: string | null;
+    propertyKey: string | null;
     address: string | null;
+    state: string | null;
+    zip: string | null;
+    associationKey: string | null;
     associationId: string | null;
     associationName: string | null;
+    accountNumber: string | null;
+    hoaPropertyStatus: string | null;
   }>
 > {
   const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 1000000);
   const sql = `
     SELECT
-      p.${col(P.id)}       AS property_id,
-      p.${col(P.address)}  AS address,
-      a.${col(A.id)}       AS association_id,
-      a.${col(A.name)}     AS association_name
-    FROM ${T.properties} p
-    LEFT JOIN ${T.associations} a
-      ON p.${col(P.assocFk)} = a.${col(A.id)}
+      m.${col(HP.propertyKey)} AS property_key,
+      p.${col(P.fullAddress)}  AS address,
+      p.${col(P.state)}        AS state,
+      p.${col(P.zip)}          AS zip,
+      h.${col(H.key)}          AS association_key,
+      h.${col(H.id)}           AS association_id,
+      h.${col(H.name)}         AS association_name,
+      m.${col(HP.accountNumber)} AS account_number,
+      m.${col(HP.status)}      AS hoa_property_status
+    FROM ${T.hoaProperty} m
+    LEFT JOIN ${T.hoa} h
+      ON h.${col(H.key)} = m.${col(HP.hoaKey)} AND h.${col(H.currentFlag)} = ?
+    LEFT JOIN ${T.property} p
+      ON p.${col(P.key)} = m.${col(HP.propertyKey)} AND p.${col(P.currentFlag)} = ?
     ORDER BY association_name, address
     LIMIT ${safeLimit}
   `;
-  const rows = await snowflakeQuery(sql);
+  const rows = await snowflakeQuery(sql, [CURRENT_FLAG_VAL, CURRENT_FLAG_VAL]);
   return rows.map((r) => ({
-    propertyId: str(pick(r, "property_id")),
+    propertyKey: str(pick(r, "property_key")),
     address: str(pick(r, "address")),
+    state: str(pick(r, "state")),
+    zip: str(pick(r, "zip")),
+    associationKey: str(pick(r, "association_key")),
     associationId: str(pick(r, "association_id")),
     associationName: str(pick(r, "association_name")),
+    accountNumber: str(pick(r, "account_number")),
+    hoaPropertyStatus: str(pick(r, "hoa_property_status")),
   }));
 }

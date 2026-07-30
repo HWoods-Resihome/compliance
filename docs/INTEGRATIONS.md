@@ -159,9 +159,10 @@ Queries will use **parameterized binds** to avoid SQL injection.
 ## Associations (HOA) — ResiAIMS extraction
 
 Extracts HOA/association data from ResiAIMS (Snowflake), mirroring the
-ResiAIMS **Association tab**: contacts, leasing information, amenities, access
-codes, inspections — plus the mapping of which properties belong to each
-association. Code: [`src/lib/associations.ts`](../src/lib/associations.ts),
+ResiAIMS **Association tab**: contacts, management company, assessment,
+leasing information, amenities, access codes — plus the mapping of which
+properties belong to each association (with per-property inspection dates).
+Code: [`src/lib/associations.ts`](../src/lib/associations.ts),
 route: [`src/app/api/associations/route.ts`](../src/app/api/associations/route.ts),
 page: [`src/app/associations/page.tsx`](../src/app/associations/page.tsx).
 
@@ -187,49 +188,61 @@ curl "https://<domain>/api/associations?map=1" -H "x-api-key: $API_LOOKUP_KEY"
 > route with `API_LOOKUP_KEY` and point the app at a **read-only** Snowflake
 > role.
 
-### Schema mapping (important)
+### Schema mapping
 
 The extraction SQL is built from a **single schema mapping** in
-`src/lib/associations.ts`. The default ResiAIMS table/column names there are
-best-effort and should be confirmed against the account. Every name is
-overridable via `RESIAIMS_*` environment variables (see `.env.example`) — so
-the real schema can be pointed at **without a code change**:
+`src/lib/associations.ts`. The defaults target the **real ResiAIMS warehouse**
+objects, confirmed against `PROD_ANALYTICS.DBT_RESICAP`. Every name stays
+overridable via `RESIAIMS_*` environment variables (see `.env.example`) so the
+schema can be repointed **without a code change** if the warehouse layout
+shifts:
 
 | Concern | Table env var | Default |
 | --- | --- | --- |
-| Associations (HOA tab) | `RESIAIMS_ASSOCIATIONS_TABLE` | `ASSOCIATIONS` |
-| Amenities | `RESIAIMS_AMENITIES_TABLE` | `ASSOCIATION_AMENITIES` |
-| Access codes | `RESIAIMS_ACCESS_CODES_TABLE` | `ASSOCIATION_ACCESS_CODES` |
-| Inspections | `RESIAIMS_INSPECTIONS_TABLE` | `ASSOCIATION_INSPECTIONS` |
-| Properties | `RESIAIMS_PROPERTIES_TABLE` | `PROPERTIES` |
+| Associations (HOA / Leasing / Amenities tabs) | `RESIAIMS_HOA_TABLE` | `DIM_HOA` |
+| Association ⇄ property map + inspections | `RESIAIMS_HOA_PROPERTY_TABLE` | `FCT_HOA_PROPERTY` |
+| Access codes | `RESIAIMS_ACCESS_CODES_TABLE` | `FCT_HOA_ACCESS_CODE_ACCUM` |
+| Assessment rollup / status | `RESIAIMS_HOA_ACCUM_TABLE` | `FCT_HOA_ACCUM` |
+| Properties | `RESIAIMS_PROPERTY_TABLE` | `DIM_PROPERTY` |
 
-The **HOA tab** fields are modeled directly on the ResiAIMS "Association
-Details" screen and live as columns on the associations record: status, fax,
-EIN/TaxID, invoice recovery, management company + 3 management-company POCs,
-physical address, local mailing address, and 3 points of contact (name,
-title, email, phone, ext). Each has a `RESIAIMS_ASSOC_*` column override — see
-`src/lib/associations.ts` for the full list.
+**Grain & joins.** `DIM_HOA` holds one current row per association
+(slowly-changing dimension — filtered to `CURRENT_FLAG = 'Y'`). `HOA_KEY` is
+the surrogate join key used everywhere; `HOA_ID` is the human-facing business
+id. The pieces join as:
 
-> The **Leasing Info / Amenities / Access Codes / Inspections** tab field
-> lists are modeled from their tab names only (those tabs haven't been
-> inspected yet). Confirm/adjust their columns when their layouts are known.
-
-Database/schema default to `RESIAIMS_DATABASE` / `RESIAIMS_SCHEMA` (falling
-back to `SNOWFLAKE_DATABASE` / `SNOWFLAKE_SCHEMA`). Column overrides
-(`RESIAIMS_ASSOC_ID_COL`, `RESIAIMS_PROPERTY_ASSOC_FK_COL`, …) are documented
-inline in `src/lib/associations.ts`.
-
-To confirm the real names in Snowflake:
-
-```sql
-SHOW TABLES LIKE '%ASSOC%' IN DATABASE <db>;
-DESCRIBE TABLE <db>.<schema>.<associations_table>;
+```
+DIM_HOA.HOA_KEY  =  FCT_HOA_PROPERTY.HOA_KEY          -- which properties belong here
+DIM_HOA.HOA_KEY  =  FCT_HOA_ACCESS_CODE_ACCUM.HOA_KEY -- access codes
+DIM_HOA.HOA_KEY  =  FCT_HOA_ACCUM.HOA_KEY             -- status + assessment rollup
+FCT_HOA_PROPERTY.PROPERTY_KEY = DIM_PROPERTY.PROPERTY_KEY (CURRENT_FLAG='Y')
 ```
 
-The property→association link defaults to a foreign-key column
-(`RESIAIMS_PROPERTY_ASSOC_FK_COL`, default `ASSOCIATION_ID`) on the properties
-table. If the account instead uses a bridge/junction table, set the table and
-FK env vars accordingly (or adjust the join in `src/lib/associations.ts`).
+**Tab → source mapping.**
+
+- **HOA tab** — columns on `DIM_HOA`: name, address, website, the primary
+  point of contact (`POC_1_*`), a secondary `CONTACT_*`, the management company
+  block (`MANAGEMENT_COMPANY_*` incl. one `MANAGEMENT_COMPANY_POC_1_*`), and
+  assessment fields. Association **status** comes from `FCT_HOA_ACCUM.HOA_STATUS`.
+- **Leasing Info** — leasing columns on `DIM_HOA` (`LEASING_PERMITTED`,
+  `LEASE_APPROVAL_REQUIRED`, `ASSOCIATION_APP_FEE(_REQUIRED)`,
+  `BACKGROUND_CHECK_*`, `ASSOCIATION_MOVE_IN_FEE_*`, `PET_ALLOWED`,
+  `PET_RESTRICTIONS`, …), surfaced as a label/value list.
+- **Amenities** — amenity + utility + parking flag columns on `DIM_HOA`
+  (`SWIMMING_POOL`, `TENNIS_COURT`, `FITNESS_CENTER`, `GOLF_COURSE`,
+  `COMMUNITY_CLUB_HOUSE`, `WATER`, `TRASH`, `LANDSCAPING`, …).
+- **Access Codes** — child rows in `FCT_HOA_ACCESS_CODE_ACCUM` by `HOA_KEY`.
+- **Inspections** — the per-property `CHIMNEY/DRYER/HVAC/FIRE_LAST_INSPECTION_DATE`
+  columns on `FCT_HOA_PROPERTY`, shown per mapped property.
+
+Each field has a matching `RESIAIMS_*` column override; see
+`src/lib/associations.ts` for the complete list. Database/schema default to
+`RESIAIMS_DATABASE` / `RESIAIMS_SCHEMA` (falling back to `SNOWFLAKE_DATABASE` /
+`SNOWFLAKE_SCHEMA`, then `PROD_ANALYTICS` / `DBT_RESICAP`).
+
+> **Sensitivity note.** `DIM_HOA` also stores HOA website credentials
+> (`WEBSITE_USERNAME` / `WEBSITE_PASSWORD`). This module projects the username
+> but **never** the password. Access codes are likewise sensitive — keep the
+> route auth-guarded and the Snowflake role read-only.
 
 ---
 
