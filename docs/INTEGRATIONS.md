@@ -156,6 +156,73 @@ Queries will use **parameterized binds** to avoid SQL injection.
 
 ---
 
+## Associations (HOA) — ResiAIMS extraction
+
+Extracts HOA/association data from ResiAIMS (Snowflake), mirroring the
+ResiAIMS **Association tab**: contacts, leasing information, amenities, access
+codes, inspections — plus the mapping of which properties belong to each
+association. Code: [`src/lib/associations.ts`](../src/lib/associations.ts),
+route: [`src/app/api/associations/route.ts`](../src/app/api/associations/route.ts),
+page: [`src/app/associations/page.tsx`](../src/app/associations/page.tsx).
+
+It runs on top of the same Snowflake transport as `/api/snowflake`, so it
+degrades identically until that transport + credentials are wired up
+(`503 snowflake_not_configured`, `501 snowflake_transport_unavailable`).
+
+### Endpoints
+
+```bash
+# List associations + property counts
+curl "https://<domain>/api/associations" -H "x-api-key: $API_LOOKUP_KEY"
+
+# Full detail for one association (contacts, leasing, amenities,
+# access codes, inspections, mapped properties)
+curl "https://<domain>/api/associations?id=<ASSOCIATION_ID>" -H "x-api-key: $API_LOOKUP_KEY"
+
+# Flat property → association mapping (one row per property)
+curl "https://<domain>/api/associations?map=1" -H "x-api-key: $API_LOOKUP_KEY"
+```
+
+> **Security:** association detail includes **access codes**. Protect the
+> route with `API_LOOKUP_KEY` and point the app at a **read-only** Snowflake
+> role.
+
+### Schema mapping (important)
+
+The extraction SQL is built from a **single schema mapping** in
+`src/lib/associations.ts`. The default ResiAIMS table/column names there are
+best-effort and should be confirmed against the account. Every name is
+overridable via `RESIAIMS_*` environment variables (see `.env.example`) — so
+the real schema can be pointed at **without a code change**:
+
+| Concern | Table env var | Default |
+| --- | --- | --- |
+| Associations | `RESIAIMS_ASSOCIATIONS_TABLE` | `ASSOCIATIONS` |
+| Contacts | `RESIAIMS_CONTACTS_TABLE` | `ASSOCIATION_CONTACTS` |
+| Amenities | `RESIAIMS_AMENITIES_TABLE` | `ASSOCIATION_AMENITIES` |
+| Access codes | `RESIAIMS_ACCESS_CODES_TABLE` | `ASSOCIATION_ACCESS_CODES` |
+| Inspections | `RESIAIMS_INSPECTIONS_TABLE` | `ASSOCIATION_INSPECTIONS` |
+| Properties | `RESIAIMS_PROPERTIES_TABLE` | `PROPERTIES` |
+
+Database/schema default to `RESIAIMS_DATABASE` / `RESIAIMS_SCHEMA` (falling
+back to `SNOWFLAKE_DATABASE` / `SNOWFLAKE_SCHEMA`). Column overrides
+(`RESIAIMS_ASSOC_ID_COL`, `RESIAIMS_PROPERTY_ASSOC_FK_COL`, …) are documented
+inline in `src/lib/associations.ts`.
+
+To confirm the real names in Snowflake:
+
+```sql
+SHOW TABLES LIKE '%ASSOC%' IN DATABASE <db>;
+DESCRIBE TABLE <db>.<schema>.<associations_table>;
+```
+
+The property→association link defaults to a foreign-key column
+(`RESIAIMS_PROPERTY_ASSOC_FK_COL`, default `ASSOCIATION_ID`) on the properties
+table. If the account instead uses a bridge/junction table, set the table and
+FK env vars accordingly (or adjust the join in `src/lib/associations.ts`).
+
+---
+
 ## Snowflake MCP (in progress)
 
 The user is separately wiring a **Snowflake MCP** connector into their Claude

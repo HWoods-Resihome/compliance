@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented here.
 
+## [0.3.0] - 2026-07-30
+
+### Added
+- **Associations (HOA) extraction** from ResiAIMS (Snowflake):
+  - `/associations` page — lists associations with their mapped-property
+    counts, and a per-association detail view mirroring the ResiAIMS
+    "Association" tab: contacts, leasing, amenities, access codes,
+    inspections, and the properties belonging to the association.
+  - `GET /api/associations` — list; `?id=<id>` full detail; `?map=1` flat
+    property→association mapping. Auth-guarded; access codes make responses
+    sensitive.
+  - `src/lib/associations.ts` — typed query builders over the existing
+    `snowflakeQuery` seam, with the ResiAIMS **schema mapping (table/column
+    names) isolated in one place and overridable via `RESIAIMS_*` env vars**,
+    so the exact schema can be pointed at without a code change. Identifiers
+    are validated; all runtime filter values use bound parameters.
+- Home page links to the Associations view.
+
+### Notes
+- Like the rest of the Snowflake integration, this degrades gracefully
+  (`503 snowflake_not_configured` / `501 snowflake_transport_unavailable`)
+  until the Snowflake query transport and credentials are wired up.
+- The default ResiAIMS table/column names are best-effort and should be
+  confirmed against the account (see docs/INTEGRATIONS.md).
+
 ## [0.2.2] - 2026-07-28
 
 ### Security

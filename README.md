@@ -56,6 +56,7 @@ npm run lint        # next lint
 | `GET` | `/api/hubspot/pipeline` | Ticket pipeline board data (default: Utilities Activation) |
 | `GET` | `/api/snowflake?health=1` | Snowflake connectivity check |
 | `POST` | `/api/snowflake` (body: `{ "sql": "...", "binds": [...] }`) | Run a Snowflake query |
+| `GET` | `/api/associations` | HOA/association records from ResiAIMS (`?id=` detail, `?map=1` property→association map) |
 
 ### Pages
 
@@ -63,6 +64,7 @@ npm run lint        # next lint
 | --- | --- |
 | `/` | Dashboard — integration status + links |
 | `/pipelines/utilities-activation` | Live board mapping the **Utilities Activation** ticket pipeline: stage summary table + Kanban board with ticket counts and recent tickets per stage |
+| `/associations` | **Associations (HOA)** from ResiAIMS: list with mapped-property counts + per-association detail (contacts, leasing, amenities, access codes, inspections, properties) |
 
 See [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) for request/response details.
 

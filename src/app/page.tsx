@@ -34,6 +34,17 @@ export default function Home() {
           </p>
         </Link>
 
+        <Link className="card" href="/associations">
+          <h2>
+            <span className="status ok" /> Associations (HOA) →
+          </h2>
+          <p>
+            HOA / association records from ResiAIMS — contacts, leasing,
+            amenities, access codes, inspections, and the properties mapped to
+            each association.
+          </p>
+        </Link>
+
         {integrations.map((it) => (
           <div className="card" key={it.name}>
             <h2>
@@ -69,6 +80,8 @@ export default function Home() {
             <code>GET /api/snowflake?health=1</code>
             <br />
             <code>POST /api/snowflake</code>
+            <br />
+            <code>GET /api/associations</code>
           </p>
         </div>
       </div>
