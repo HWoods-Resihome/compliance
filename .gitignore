@@ -14,6 +14,9 @@ next-env.d.ts
 # misc
 .DS_Store
 *.pem
+# Snowflake key-pair files emitted by scripts/generate-snowflake-keypair.mjs
+*.p8
+snowflake_key.pub
 
 # debug logs
 npm-debug.log*

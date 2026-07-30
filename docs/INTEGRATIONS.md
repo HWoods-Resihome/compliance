@@ -141,6 +141,28 @@ Optional session context: `SNOWFLAKE_ROLE`, `SNOWFLAKE_WAREHOUSE`,
 `SNOWFLAKE_DATABASE`, `SNOWFLAKE_SCHEMA`. Rare overrides: `SNOWFLAKE_HOST`,
 `SNOWFLAKE_JWT_ACCOUNT`.
 
+For the ResiHome account the identifier is `EACSMUH-OTA12822` (host
+`eacsmuh-ota12822.snowflakecomputing.com`); the SQL API warehouse is
+`RESICAP_ANALYST_WAREHOUSE`. If key-pair auth returns 401, override the JWT
+account form with `SNOWFLAKE_JWT_ACCOUNT` (e.g. the bare locator `OTA12822`).
+
+**Setup helpers** (`scripts/`, no dependencies — Node's built-in `crypto`):
+
+```bash
+# 1. Generate a key pair + print the ALTER USER statement and env block.
+#    The private key never leaves your machine; only the public key is registered.
+node scripts/generate-snowflake-keypair.mjs --user <SNOWFLAKE_USER>
+
+# 2. Run the printed ALTER USER … SET RSA_PUBLIC_KEY='…' in a Snowflake
+#    worksheet as ACCOUNTADMIN / SECURITYADMIN / USERADMIN. A dedicated
+#    read-only service user is preferred over a human login.
+
+# 3. Set the env vars, then verify auth / role / warehouse / schema access:
+node scripts/test-snowflake.mjs
+# ✓ Auth OK — Snowflake version 9.x.x
+# ✓ Read OK — 6099 current HOA rows in PROD_ANALYTICS.DBT_RESICAP.DIM_HOA
+```
+
 Implementation notes: positional `?` binds are sent as typed
 `bindings`; large result sets are stitched across **result partitions**;
 long-running statements that return `202 Accepted` are **polled** to

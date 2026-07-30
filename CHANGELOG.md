@@ -18,6 +18,12 @@ All notable changes to this project are documented here.
     `429`/`5xx`/network **retries** with backoff under a client-side timeout.
   - The `/associations` page, `/api/associations`, and `/api/snowflake` now
     serve live data as soon as credentials are set.
+- **Setup scripts** (`scripts/`, no dependencies):
+  - `generate-snowflake-keypair.mjs` — generates an RSA key pair and prints the
+    exact `ALTER USER … SET RSA_PUBLIC_KEY` statement + env block (private key
+    never leaves the machine).
+  - `test-snowflake.mjs` — key-pair JWT connectivity smoke test
+    (`CURRENT_VERSION()` + a HOA count) to verify auth/role/warehouse/schema.
 
 ### Changed
 - `snowflakeStatus()` and `.env.example` reflect the new auth model
