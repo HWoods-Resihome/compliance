@@ -2,10 +2,13 @@
 /**
  * Snowflake connectivity smoke test — key-pair JWT over the SQL REST API.
  *
- * Reads the same environment variables the app uses and runs two read-only
- * queries: CURRENT_VERSION() and a HOA count from the ResiAIMS schema. Use it
- * after registering your public key (scripts/generate-snowflake-keypair.mjs) to
- * confirm auth, role, warehouse and schema access before deploying.
+ * Reads the same environment variables the app uses and runs read-only checks:
+ * CURRENT_VERSION(), the *effective* session identity (CURRENT_ROLE /
+ * CURRENT_WAREHOUSE — which reveals whatever the account defaults to when
+ * SNOWFLAKE_ROLE / SNOWFLAKE_WAREHOUSE are left unset), and a SELECT against
+ * every ResiCAP HOA table the app depends on. Use it after registering your
+ * public key (scripts/generate-snowflake-keypair.mjs) to confirm auth, role,
+ * warehouse and schema access before deploying.
  *
  * Usage:
  *   SNOWFLAKE_ACCOUNT=... SNOWFLAKE_USER=... SNOWFLAKE_PRIVATE_KEY=... \
@@ -143,6 +146,18 @@ const cfg = {
 const host = opt("SNOWFLAKE_HOST") ?? accountHost(cfg.account);
 const base = `https://${host}/api/v2/statements`;
 
+// The ResiCAP HOA tables the app reads (src/lib/associations.ts). A valid key
+// is not enough — the effective role must hold SELECT on every one of these,
+// so the smoke test checks them all rather than a single representative table.
+// Names mirror the same RESIAIMS_*_TABLE overrides the app honors.
+const REQUIRED_TABLES = [
+  opt("RESIAIMS_HOA_TABLE") ?? "DIM_HOA",
+  opt("RESIAIMS_HOA_PROPERTY_TABLE") ?? "FCT_HOA_PROPERTY",
+  opt("RESIAIMS_ACCESS_CODES_TABLE") ?? "FCT_HOA_ACCESS_CODE_ACCUM",
+  opt("RESIAIMS_HOA_ACCUM_TABLE") ?? "FCT_HOA_ACCUM",
+  opt("RESIAIMS_PROPERTY_TABLE") ?? "DIM_PROPERTY",
+];
+
 let jwt, fingerprint;
 try {
   cfg.privateKey = loadPrivateKey(
@@ -166,14 +181,50 @@ try {
   const v = await runQuery(base, jwt, cfg, "SELECT CURRENT_VERSION() AS VERSION");
   console.log(`✓ Auth OK — Snowflake version ${v[0]?.VERSION ?? "?"}`);
 
-  const hoaTable = `${cfg.database}.${cfg.schema}.${opt("RESIAIMS_HOA_TABLE") ?? "DIM_HOA"}`;
-  const c = await runQuery(
+  // Report the identity the session actually resolved to. When SNOWFLAKE_ROLE /
+  // SNOWFLAKE_WAREHOUSE are unset the app runs under the user's account
+  // defaults, and those defaults — not the key — decide whether reads succeed.
+  const ctx = await runQuery(
     base,
     jwt,
     cfg,
-    `SELECT COUNT(*) AS N FROM ${hoaTable} WHERE CURRENT_FLAG='Y'`,
+    "SELECT CURRENT_ROLE() AS ROLE, CURRENT_WAREHOUSE() AS WAREHOUSE",
   );
-  console.log(`✓ Read OK — ${c[0]?.N ?? "?"} current HOA rows in ${hoaTable}`);
+  const effRole = ctx[0]?.ROLE ?? "(none)";
+  const effWh = ctx[0]?.WAREHOUSE ?? "(none)";
+  const roleImplicit = cfg.role ? "" : " ← default, not pinned via SNOWFLAKE_ROLE";
+  const whImplicit = cfg.warehouse ? "" : " ← default, not pinned via SNOWFLAKE_WAREHOUSE";
+  console.log(`  Effective role:      ${effRole}${roleImplicit}`);
+  console.log(`  Effective warehouse: ${effWh}${whImplicit}`);
+  if (effWh === "(none)") {
+    console.warn(
+      "  ⚠ No active warehouse — queries that scan data will fail. " +
+        "Set SNOWFLAKE_WAREHOUSE or give the user a default warehouse.",
+    );
+  }
+
+  let failures = 0;
+  for (const table of REQUIRED_TABLES) {
+    const fqn = `${cfg.database}.${cfg.schema}.${table}`;
+    try {
+      const c = await runQuery(base, jwt, cfg, `SELECT COUNT(*) AS N FROM ${fqn}`);
+      console.log(`✓ Read OK — ${c[0]?.N ?? "?"} rows in ${fqn}`);
+    } catch (err) {
+      failures++;
+      console.error(`✗ Read FAILED — ${fqn}: ${err.message}`);
+    }
+  }
+
+  if (failures > 0) {
+    console.error(
+      `\n✗ ${failures}/${REQUIRED_TABLES.length} required tables unreadable as role ${effRole}.`,
+    );
+    console.error(
+      "The key/auth is fine; the effective role lacks SELECT (or warehouse USAGE). " +
+        "Pin SNOWFLAKE_ROLE to a role that holds SELECT on these tables and USAGE on the warehouse.",
+    );
+    process.exit(1);
+  }
   console.log("\nAll checks passed.");
 } catch (err) {
   console.error(`\n✗ FAILED: ${err.message}`);
