@@ -48,6 +48,17 @@ export class SnowflakeDriverUnavailableError extends Error {
   }
 }
 
+/**
+ * `SNOWFLAKE_PRIVATE_KEY` was present but unusable as a JWT signing key — most
+ * commonly because a PUBLIC key was supplied where the PRIVATE key is expected.
+ */
+export class SnowflakePrivateKeyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SnowflakePrivateKeyError";
+  }
+}
+
 /** A Snowflake error surfaced by the SQL REST API (non-2xx response). */
 export class SnowflakeQueryError extends Error {
   status: number;
@@ -141,6 +152,28 @@ export function accountHost(account: string): string {
   return `${account.trim().toLowerCase()}.snowflakecomputing.com`;
 }
 
+/**
+ * Does `raw` parse as a PUBLIC key (PEM or SPKI DER)? Used only to turn a
+ * failed private-key load into an actionable error: the public key is the value
+ * you register on the Snowflake user, not the key the app signs the JWT with.
+ * Only meaningful once private-key parsing has already failed — a private PEM
+ * would have loaded as a private key rather than reaching here.
+ */
+function isPublicKeyMaterial(raw: string): boolean {
+  const tryParse = (input: Parameters<typeof createPublicKey>[0]): boolean => {
+    try {
+      createPublicKey(input);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (raw.includes("BEGIN")) return tryParse({ key: raw, format: "pem" });
+  const decoded = Buffer.from(raw, "base64").toString("utf8");
+  if (decoded.includes("BEGIN")) return tryParse({ key: decoded, format: "pem" });
+  return tryParse({ key: Buffer.from(raw, "base64"), format: "der", type: "spki" });
+}
+
 /** Load the private key from env (PEM, escaped PEM, or base64 of PEM/DER). */
 export function loadPrivateKey(): KeyObject {
   const rawEnv = process.env.SNOWFLAKE_PRIVATE_KEY;
@@ -151,20 +184,34 @@ export function loadPrivateKey(): KeyObject {
   let raw = rawEnv.trim();
   if (raw.includes("\\n")) raw = raw.replace(/\\n/g, "\n");
 
-  if (raw.includes("BEGIN")) {
-    return createPrivateKey({ key: raw, format: "pem", passphrase });
+  try {
+    if (raw.includes("BEGIN")) {
+      return createPrivateKey({ key: raw, format: "pem", passphrase });
+    }
+    // No PEM header: try base64-of-PEM first, then base64-of-DER (PKCS#8).
+    const decoded = Buffer.from(raw, "base64").toString("utf8");
+    if (decoded.includes("BEGIN")) {
+      return createPrivateKey({ key: decoded, format: "pem", passphrase });
+    }
+    return createPrivateKey({
+      key: Buffer.from(raw, "base64"),
+      format: "der",
+      type: "pkcs8",
+      passphrase,
+    });
+  } catch (err) {
+    if (isPublicKeyMaterial(raw)) {
+      throw new SnowflakePrivateKeyError(
+        "SNOWFLAKE_PRIVATE_KEY holds a PUBLIC key, but key-pair JWT auth needs " +
+          "the matching PRIVATE key to sign with. The public key is what you " +
+          "register on the Snowflake user " +
+          "(ALTER USER ... SET RSA_PUBLIC_KEY='...'); set SNOWFLAKE_PRIVATE_KEY " +
+          "to the corresponding private key (PEM/PKCS#8, PEM with \\n escapes, " +
+          "or base64 of the PEM/DER).",
+      );
+    }
+    throw err;
   }
-  // No PEM header: try base64-of-PEM first, then base64-of-DER (PKCS#8).
-  const decoded = Buffer.from(raw, "base64").toString("utf8");
-  if (decoded.includes("BEGIN")) {
-    return createPrivateKey({ key: decoded, format: "pem", passphrase });
-  }
-  return createPrivateKey({
-    key: Buffer.from(raw, "base64"),
-    format: "der",
-    type: "pkcs8",
-    passphrase,
-  });
 }
 
 /** `SHA256:<base64>` fingerprint of the public key derived from a private key. */

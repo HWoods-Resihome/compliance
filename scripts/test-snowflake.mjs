@@ -31,24 +31,65 @@ function opt(name) {
   return v && v.trim() ? v.trim() : undefined;
 }
 
-function normalizePrivateKey(raw) {
-  const v = raw.trim();
-  if (v.includes("BEGIN")) return v.replace(/\\n/g, "\n");
+/** Does `raw` parse as a PUBLIC key? Used to explain a failed private-key load. */
+function isPublicKeyMaterial(raw) {
+  const tryParse = (input) => {
+    try {
+      createPublicKey(input);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (raw.includes("BEGIN")) return tryParse({ key: raw, format: "pem" });
+  const decoded = Buffer.from(raw, "base64").toString("utf8");
+  if (decoded.includes("BEGIN")) return tryParse({ key: decoded, format: "pem" });
+  return tryParse({ key: Buffer.from(raw, "base64"), format: "der", type: "spki" });
+}
+
+/**
+ * Load the signing key from the same shapes the app supports: PEM (PKCS#8), PEM
+ * with literal `\n` escapes, base64-of-PEM, or base64-of-DER (PKCS#8). Mirrors
+ * src/lib/snowflake.ts::loadPrivateKey so the smoke test validates the real
+ * auth path. Throws an actionable error if a public key was supplied instead.
+ */
+function loadPrivateKey(rawEnv, passphrase) {
+  let raw = rawEnv.trim();
+  if (raw.includes("\\n")) raw = raw.replace(/\\n/g, "\n");
+  const opts = passphrase ? { passphrase } : {};
   try {
-    const decoded = Buffer.from(v, "base64").toString("utf8");
-    if (decoded.includes("BEGIN")) return decoded.replace(/\\n/g, "\n");
-  } catch {}
-  return v;
+    if (raw.includes("BEGIN")) {
+      return createPrivateKey({ key: raw, format: "pem", ...opts });
+    }
+    const decoded = Buffer.from(raw, "base64").toString("utf8");
+    if (decoded.includes("BEGIN")) {
+      return createPrivateKey({ key: decoded, format: "pem", ...opts });
+    }
+    return createPrivateKey({
+      key: Buffer.from(raw, "base64"),
+      format: "der",
+      type: "pkcs8",
+      ...opts,
+    });
+  } catch (err) {
+    if (isPublicKeyMaterial(raw)) {
+      throw new Error(
+        "SNOWFLAKE_PRIVATE_KEY holds a PUBLIC key, but key-pair JWT auth needs the " +
+          "matching PRIVATE key to sign with. The public key is what you register on " +
+          "the Snowflake user (ALTER USER ... SET RSA_PUBLIC_KEY='...'); set " +
+          "SNOWFLAKE_PRIVATE_KEY to the corresponding private key.",
+      );
+    }
+    throw err;
+  }
 }
 const jwtAccount = (a) => a.split(".")[0].toUpperCase();
 const accountHost = (a) => `${a.trim().toLowerCase()}.snowflakecomputing.com`;
 const b64url = (b) =>
   Buffer.from(b).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-function buildJwt({ account, user, privateKeyPem, passphrase, jwtAcct }) {
-  const keyInput = passphrase ? { key: privateKeyPem, passphrase } : privateKeyPem;
-  const keyObject = createPrivateKey(keyInput);
-  const der = createPublicKey(keyObject).export({ format: "der", type: "spki" });
+function buildJwt({ account, user, privateKey, jwtAcct }) {
+  const der = createPublicKey(privateKey).export({ format: "der", type: "spki" });
   const fp = "SHA256:" + createHash("sha256").update(der).digest("base64");
   const acct = (jwtAcct ?? jwtAccount(account)).toUpperCase();
   const qualifiedUser = `${acct}.${user.toUpperCase()}`;
@@ -58,7 +99,7 @@ function buildJwt({ account, user, privateKeyPem, passphrase, jwtAcct }) {
     JSON.stringify({ iss: `${qualifiedUser}.${fp}`, sub: qualifiedUser, iat, exp: iat + 3600 }),
   );
   const signingInput = `${header}.${payload}`;
-  const sig = createSign("RSA-SHA256").update(signingInput).sign(keyInput);
+  const sig = createSign("RSA-SHA256").update(signingInput).sign(privateKey);
   return { jwt: `${signingInput}.${b64url(sig)}`, fingerprint: fp };
 }
 
@@ -92,8 +133,6 @@ async function runQuery(base, jwt, cfg, statement) {
 const cfg = {
   account: need("SNOWFLAKE_ACCOUNT"),
   user: need("SNOWFLAKE_USER"),
-  privateKeyPem: normalizePrivateKey(need("SNOWFLAKE_PRIVATE_KEY")),
-  passphrase: opt("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE"),
   role: opt("SNOWFLAKE_ROLE"),
   warehouse: opt("SNOWFLAKE_WAREHOUSE"),
   database: opt("SNOWFLAKE_DATABASE") ?? "PROD_ANALYTICS",
@@ -103,7 +142,18 @@ const cfg = {
 
 const host = opt("SNOWFLAKE_HOST") ?? accountHost(cfg.account);
 const base = `https://${host}/api/v2/statements`;
-const { jwt, fingerprint } = buildJwt(cfg);
+
+let jwt, fingerprint;
+try {
+  cfg.privateKey = loadPrivateKey(
+    need("SNOWFLAKE_PRIVATE_KEY"),
+    opt("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE"),
+  );
+  ({ jwt, fingerprint } = buildJwt(cfg));
+} catch (err) {
+  console.error(`✗ Could not build the key-pair JWT: ${err.message}`);
+  process.exit(1);
+}
 
 console.log(`Host:        ${host}`);
 console.log(`Account/JWT: ${(cfg.jwtAcct ?? jwtAccount(cfg.account)).toUpperCase()}`);
