@@ -23,6 +23,18 @@ export default function Home() {
       </p>
 
       <div className="grid">
+        <Link className="card" href="/utility-guide">
+          <h2>
+            <span className="status ok" /> Utility Guide →
+          </h2>
+          <p>
+            The RESIHOME utility bible — providers, who-pays rules,
+            leak-adjustment policies and provider intel by state, community and
+            owner — referenced live against the HubSpot Utilities and
+            Compliance-Issues pipelines.
+          </p>
+        </Link>
+
         <Link className="card" href="/pipelines/utilities-activation">
           <h2>
             <span className="status ok" /> Utilities Activation pipeline →

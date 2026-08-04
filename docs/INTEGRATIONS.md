@@ -288,6 +288,88 @@ Each field has a matching `RESIAIMS_*` column override; see
 
 ---
 
+## Utility Guide — Google Sheet reference, joined to HubSpot
+
+Models the **"RESIHOME- UTILITY GUIDE"** Google Sheet so utilities/compliance
+work can be *referenced live against HubSpot*. Code:
+[`src/lib/utilityGuide.ts`](../src/lib/utilityGuide.ts) (types, accessors,
+region rollup, HubSpot field map) +
+[`src/lib/utilityGuideData.ts`](../src/lib/utilityGuideData.ts) (the snapshot),
+route: [`src/app/api/utility-guide/route.ts`](../src/app/api/utility-guide/route.ts),
+page: [`src/app/utility-guide/page.tsx`](../src/app/utility-guide/page.tsx).
+
+### What it is (and the snapshot model)
+
+The Sheet is the operational "utility bible": which provider serves each
+community, who pays each utility, how leak adjustments work per provider, which
+providers require a Letter of Authorization, provider logins, the weekly
+cadence, and standing policies. That reference data changes slowly and is not in
+a warehouse, so it is captured as a typed **point-in-time snapshot** in
+`utilityGuideData.ts` (source URL + `GUIDE_SNAPSHOT_DATE` recorded inline). To
+refresh, re-read the Sheet and update the arrays — the shape is stable and the
+page/route read only from those exports.
+
+> **Security:** the Sheet stores provider portal **passwords**. Those are
+> intentionally **not** captured here — the snapshot keeps provider / website /
+> username and a `hasPassword` flag only, mirroring `associations.ts` (which
+> never projects `WEBSITE_PASSWORD`). Keep the route auth-guarded.
+
+### Drill-down cadence (the recommended "easy look")
+
+- **Primary: State → Community.** The community is the atomic unit (its homes
+  share the same five providers + billing), and communities roll up cleanly to
+  state (where provider / regulatory differences live).
+- **Owner/fund and Provider are cross-cutting lenses** — owner (by Entity-ID
+  prefix) governs *who pays*; provider governs *process* (leak adjustments, LOA,
+  logins).
+- **Address is the join key, not a browse tier** — it's where the guide meets
+  HubSpot; guide data is community-grain, so a property inherits its entry via
+  community / state / owner. **Region** is a soft rollup above state (reporting).
+
+### Endpoints
+
+```bash
+# Summary: state rollup + counts + snapshot source
+curl "https://<domain>/api/utility-guide" -H "x-api-key: $API_LOOKUP_KEY"
+
+# Full snapshot (every tab)
+curl "https://<domain>/api/utility-guide?view=full" -H "x-api-key: $API_LOOKUP_KEY"
+
+# Provider usage index / HubSpot field map
+curl "https://<domain>/api/utility-guide?view=providers" -H "x-api-key: $API_LOOKUP_KEY"
+curl "https://<domain>/api/utility-guide?view=fieldmap"  -H "x-api-key: $API_LOOKUP_KEY"
+
+# Reference lookup — the "live bump" join from a HubSpot record
+curl "https://<domain>/api/utility-guide?community=Copperleaf&state=SC" -H "x-api-key: $API_LOOKUP_KEY"
+curl "https://<domain>/api/utility-guide?state=GA&owner=Rocklyn%20Homes&entityId=RH0123" -H "x-api-key: $API_LOOKUP_KEY"
+```
+
+### HubSpot field mapping (the live bump)
+
+`HUBSPOT_FIELD_MAP` in `utilityGuide.ts` (also served at `?view=fieldmap` and
+rendered on the page) bridges the guide to HubSpot's live objects. `join: true`
+marks the keys that bind a record to a guide entry.
+
+- **Property object** — `address` (join anchor), `state`, `community`,
+  `owner_entity`, `entity_id` are the join keys; `electric_provider` … and
+  `utility_responsibility` are prefilled from the community + owner rule.
+- **Ticket object** — the **Utilities** pipeline (HubSpot id `80932995`,
+  overridable via `HUBSPOT_UTILITIES_PIPELINE_ID`) and the **Compliance-Issues**
+  pipeline (`HUBSPOT_COMPLIANCE_ISSUES_PIPELINE_ID`, unset until provided).
+  A ticket associates to the Property; the property's community / state / owner
+  then resolve the provider, payer, credentials and process. The Utility Guide
+  page shows both pipelines' live ticket counts when `HUBSPOT_TOKEN` is set.
+
+### Data captured (Sheet tabs)
+
+Communities (State→Community provider matrix), builder rosters (DreamFinders /
+McKinley / Rocklyn), owner/fund responsibility rules (by Entity-ID prefix),
+provider portal logins (no passwords), leak-adjustment policies, provider intel
+("what we should know"), LOA requirements, recurring fees, the weekly cadence,
+Conservice contacts, resource links, and standing policies.
+
+---
+
 ## Snowflake MCP (in progress)
 
 The user is separately wiring a **Snowflake MCP** connector into their Claude

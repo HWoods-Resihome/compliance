@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented here.
 
+## [0.5.0] - 2026-08-04
+
+### Added
+- **Utility Guide** — the "RESIHOME- UTILITY GUIDE" Google Sheet ingested as a
+  typed, point-in-time snapshot and surfaced as a dashboard on the compliance
+  app, prepared to reference live against HubSpot.
+  - `/utility-guide` page: a **State → Community** drill-down (the recommended
+    "easy look"), **Owner/fund** and **Provider** lenses, reference views for
+    leak adjustments, provider intel, LOA requirements, weekly cadence, policies,
+    fees, Conservice contacts and resources — plus **live HubSpot ticket counts**
+    for the Utilities and Compliance-Issues pipelines when `HUBSPOT_TOKEN` is set.
+  - Per-community detail assembles the full reference bundle: five utility
+    providers + who-pays, the owner/fund rule (by Entity-ID prefix), matching
+    provider logins, leak-adjustment policies, LOA requirements and provider
+    intel.
+  - `GET /api/utility-guide` — summary; `?view=full|providers|fieldmap`;
+    `?community=&state=` / `?state=&owner=&entityId=` reference lookup (the
+    "live bump" join). Auth-guarded.
+  - `src/lib/utilityGuide.ts` (types, region rollup, accessors, **HubSpot
+    property/ticket field map**) + `src/lib/utilityGuideData.ts` (the snapshot,
+    with source URL + snapshot date). Provider **passwords are never stored** —
+    only provider/website/username + a `hasPassword` flag (mirrors
+    `associations.ts`).
+- Home page links to the Utility Guide.
+- `.env.example`: `HUBSPOT_UTILITIES_PIPELINE_ID` +
+  `HUBSPOT_COMPLIANCE_ISSUES_PIPELINE_ID` for the live-bump pipeline ids.
+
+### Notes
+- The guide is a **snapshot** of reference data that changes slowly; refresh by
+  re-reading the Sheet and updating `utilityGuideData.ts`. See
+  docs/INTEGRATIONS.md for the drill-down cadence rationale and the field map.
+
 ## [0.4.0] - 2026-07-30
 
 ### Added

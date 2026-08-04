@@ -57,12 +57,14 @@ npm run lint        # next lint
 | `GET` | `/api/snowflake?health=1` | Snowflake connectivity check |
 | `POST` | `/api/snowflake` (body: `{ "sql": "...", "binds": [...] }`) | Run a Snowflake query |
 | `GET` | `/api/associations` | HOA/association records from ResiAIMS (`?id=` detail, `?map=1` property→association map) |
+| `GET` | `/api/utility-guide` | Utility Guide snapshot (`?view=full`, `?view=providers`, `?view=fieldmap`, or `?community=&state=` reference lookup) |
 
 ### Pages
 
 | Route | Purpose |
 | --- | --- |
 | `/` | Dashboard — integration status + links |
+| `/utility-guide` | **Utility Guide** — the RESIHOME utility bible (providers, who-pays rules, leak adjustments, provider intel) with a State→Community drill-down, Owner/Provider lenses, live HubSpot pipeline counts, and the HubSpot property/ticket field mapping |
 | `/pipelines/utilities-activation` | Live board mapping the **Utilities Activation** ticket pipeline: stage summary table + Kanban board with ticket counts and recent tickets per stage |
 | `/associations` | **Associations (HOA)** from ResiAIMS: list with mapped-property counts + per-association detail (contacts, leasing, amenities, access codes, inspections, properties) |
 

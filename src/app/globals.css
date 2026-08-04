@@ -416,3 +416,54 @@ code {
 .preline {
   white-space: pre-line;
 }
+
+/* ---------- Utility Guide ---------- */
+.lensnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+.lens {
+  font-size: 12.5px;
+  text-decoration: none;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: var(--panel);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.lens:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.lens.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+.panel.reco {
+  padding: 4px 18px 14px;
+  border-color: rgba(59, 130, 246, 0.4);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), transparent 60%),
+    var(--panel);
+}
+.panel.reco p {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 10px;
+}
+.panel.reco p:last-child {
+  margin-bottom: 0;
+}
+.rulelist {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.rulelist li {
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
