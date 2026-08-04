@@ -23,6 +23,18 @@ export default function Home() {
       </p>
 
       <div className="grid">
+        <Link className="card" href="/utilities">
+          <h2>
+            <span className="status ok" /> Action Items (CTA board) →
+          </h2>
+          <p>
+            Operations-styled action-items board across every HubSpot ticket
+            pipeline — due dates, stages and address, with selectable monitored
+            pipelines and grouping by portfolio, organization, region, state or
+            address. Skeleton for review.
+          </p>
+        </Link>
+
         <Link className="card" href="/utility-guide">
           <h2>
             <span className="status ok" /> Utility Guide →

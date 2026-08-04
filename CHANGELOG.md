@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased] — Action-items (CTA) dashboard skeleton
+
+### Added (skeleton — for review, not yet deployed to production)
+- **HubSpot ticket-pipeline registry** (`src/lib/pipelines.ts`): a faithful,
+  typed capture of all 45 ticket pipelines and every stage with HubSpot internal
+  IDs, grouped into operational categories, with a `monitoredByDefault` flag and
+  an open/terminal-stage heuristic.
+- **CTA data layer** (`src/lib/cta.ts`): pulls open tickets across a configurable
+  set of monitored pipelines, sorts by due date and buckets them
+  (overdue/today/this week/later), and groups by pipeline / stage / portfolio /
+  organization / region / state / address. Live against HubSpot when configured;
+  degrades gracefully; `demo` mode returns sample rows for review. Due-date and
+  grouping fields come from configurable ticket property names (`HUBSPOT_*_PROPERTY`).
+- **`/utilities` Action-Items dashboard** (`src/app/utilities/`): mirrors the
+  operations.resihome.com design (ResiHome pink on light, Raleway, slicer rail +
+  canvas, KPI cards, drill/group tables) — scoped under `.ops` so it doesn't
+  touch the existing dark theme. Rail lets you pick which pipelines to monitor
+  (by category) and the group-by dimension.
+- Home-page link to the board; `.env.example` documents the pipeline-id and
+  ticket-property config.
+
 ## [0.5.0] - 2026-08-04
 
 ### Added
