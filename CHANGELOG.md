@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased] — Utility Tracker (editable, HubDB-backed)
+
+### Added
+- **`/utility-guide` rebuilt as the Utility Tracker** — the Google Sheet's
+  "DRC & 3RD PARTY Community Info" tab (State · Community · Electric/Gas/Water/
+  Sewer/Trash provider · who-pays · cost · notes) is now a **fully editable,
+  filterable table** so the team can move off the spreadsheet. Same Operations
+  look as `/utilities` (pink/Raleway, slicer rail + canvas, KPI cards); scoped
+  under `.ops`. Filters: search / state / who-pays. Inline-edit every cell
+  (autosaves on blur), add and delete communities.
+- **HubDB store** (`src/lib/utilityTracker.ts`): a `utility_tracker_communities`
+  HubDB table (resolved by name, auto-created + seeded with the 26 communities).
+  CRUD via draft rows + push-live. API: `GET/POST /api/utility-tracker`,
+  `PATCH/DELETE /api/utility-tracker/{rowId}`, `POST /api/utility-tracker/setup`
+  (create + seed). Auth-guarded.
+
 ## [Unreleased] — Action-items (CTA) dashboard (live)
 
 ### Added
