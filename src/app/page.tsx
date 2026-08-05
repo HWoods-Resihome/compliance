@@ -69,6 +69,18 @@ export default function Home() {
           </p>
         </Link>
 
+        <Link className="card" href="/hoa-homes">
+          <h2>
+            <span className="status ok" /> HOA Homes — FY26 Assessments →
+          </h2>
+          <p>
+            Every active, HOA-mapped home and its FY26 assessment status.
+            Filter by state, billing periodicity, last fiscal year paid, or
+            outstanding balance — or click any HOA to see all homes in that
+            association.
+          </p>
+        </Link>
+
         {integrations.map((it) => (
           <div className="card" key={it.name}>
             <h2>
