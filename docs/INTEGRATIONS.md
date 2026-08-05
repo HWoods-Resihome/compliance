@@ -104,6 +104,55 @@ Implementation notes:
 Ticket cards deep-link to the HubSpot record
 (`https://app.hubspot.com/contacts/22536354/record/0-5/<ticketId>`).
 
+### Looking up internal field names (properties & custom objects)
+
+To wire live data (e.g. the Action-Items board's `HUBSPOT_*_PROPERTY` vars, or
+the **Communities** custom object) you need HubSpot's **internal field names** —
+not the human labels. Two equivalent ways to list every one:
+
+**1. HubSpot CRM Properties + Schemas API** (direct; code:
+[`src/lib/hubspot.ts`](../src/lib/hubspot.ts) → `listProperties` / `listSchemas`).
+
+```bash
+# List every CRM object incl. the custom "Communities" object (+ its objectTypeId)
+curl "https://<domain>/api/hubspot/properties?schemas=1" -H "x-api-key: $API_LOOKUP_KEY"
+
+# Every internal field name for tickets (or contacts|companies|deals|0-5|2-XXXXXXX)
+curl "https://<domain>/api/hubspot/properties?objectType=tickets" -H "x-api-key: $API_LOOKUP_KEY"
+
+# Just the names (compact)
+curl "https://<domain>/api/hubspot/properties?objectType=tickets&names=1" -H "x-api-key: $API_LOOKUP_KEY"
+```
+
+Or straight against HubSpot: `GET https://api.hubapi.com/crm/v3/properties/{objectType}`
+and `GET https://api.hubapi.com/crm/v3/schemas` with a `Bearer` token. Each result's
+`name` is the internal field name; `label` is the display name.
+
+**From the CLI** (no server needed — mirrors the operations repo's `validate.mjs`
+pattern; reads `HUBSPOT_TOKEN` or `HUBSPOT_ACCESS_TOKEN`):
+
+```bash
+node scripts/hubspot-fields.mjs schemas             # objects + custom-object ids (find Communities)
+node scripts/hubspot-fields.mjs tickets             # all ticket field names
+node scripts/hubspot-fields.mjs 2-XXXXXXX           # a custom object (e.g. Communities) by id
+node scripts/hubspot-fields.mjs tickets --grep due  # filter (e.g. find the due-date property)
+```
+
+**2. Snowflake replica** (how the ResiHome-Operations repo resolves them). HubSpot
+is Fivetran-synced into `PROD_REPLICA.HUBSPOT_2.*`; each **column name is a HubSpot
+property internal name** (uppercased). List them without touching HubSpot:
+
+```sql
+SELECT table_name, column_name
+FROM PROD_REPLICA.INFORMATION_SCHEMA.COLUMNS
+WHERE table_schema = 'HUBSPOT_2'
+ORDER BY table_name, column_name;
+```
+
+(e.g. the operations `PROPERTIES` object exposes `PROPERTY_ELECTRIC_PROVIDER`,
+`PROPERTY_GAS_PROVIDER`, `PROPERTY_WATER_PROVIDER`, `PROPERTY_SEWER_PROVIDER`,
+`PROPERTY_TRASH_PROVIDER`, `PROPERTY_BUNDLED_UTILITIES`, `PROPERTY_ENTITY_ID`, …).
+
 ---
 
 ## Snowflake
