@@ -147,3 +147,45 @@
 /* group-by selector row */
 .ops .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
 .ops .toolbar .lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ops-muted); }
+
+/* ── Dropdowns (rail controls) ── */
+.ops .dd { position: relative; }
+.ops .dd-trigger {
+  width: 100%; cursor: pointer; font: inherit; color: var(--ops-ink);
+  border: 1px solid var(--ops-line); border-radius: 8px; padding: 8px 11px; background: #fff;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.ops .dd-trigger:hover { border-color: var(--ops-brand); }
+.ops .dd-trigger.open { border-color: var(--ops-brand); box-shadow: 0 0 0 3px var(--ops-brand-tint); }
+.ops .dd-trigger.active .dd-val { color: var(--ops-brand-dark); font-weight: 700; }
+.ops .dd-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+.ops .dd-caret { color: var(--ops-brand); font-size: 11px; flex: none; }
+.ops .dd-panel {
+  position: absolute; z-index: 1000; left: 0; right: 0; top: calc(100% + 4px);
+  background: #fff; border: 1px solid var(--ops-line); border-radius: 10px;
+  box-shadow: 0 12px 34px rgba(20, 23, 26, 0.18); overflow: hidden;
+}
+.ops .dd-panel.wide { min-width: 240px; }
+.ops .dd-search { width: 100%; box-sizing: border-box; border: none; border-bottom: 1px solid var(--ops-line); padding: 9px 12px; font: inherit; font-size: 12.5px; outline: none; }
+.ops .dd-search:focus { border-bottom-color: var(--ops-brand); }
+.ops .dd-actions { display: flex; gap: 10px; align-items: center; padding: 6px 12px; background: var(--ops-brand-tint-2); border-bottom: 1px solid var(--ops-line); }
+.ops .dd-link { border: none; background: none; padding: 0; color: var(--ops-brand-dark); font: inherit; font-size: 10.5px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase; cursor: pointer; }
+.ops .dd-link:hover { text-decoration: underline; }
+.ops .dd-count { margin-left: auto; font-size: 10.5px; color: var(--ops-muted); font-weight: 700; }
+.ops .dd-scroll { max-height: 320px; overflow-y: auto; }
+.ops .dd-cat { padding: 7px 12px 2px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ops-brand-dark); }
+.ops .dd-list { list-style: none; margin: 0; padding: 3px 5px; }
+.ops .dd-opt { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 7px; cursor: pointer; font-size: 12.5px; color: var(--ops-ink); }
+.ops .dd-opt:hover { background: var(--ops-brand-tint-2); }
+.ops .dd-opt.on { background: var(--ops-brand-tint); }
+.ops .dd-box { flex: none; width: 17px; height: 17px; border: 1.5px solid #cbd0d8; border-radius: 5px; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; }
+.ops .dd-box.radio { border-radius: 50%; }
+.ops .dd-box.on { background: var(--ops-brand); border-color: var(--ops-brand); }
+.ops .dd-opt-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops .dd-opt-sub { flex: none; font-size: 10.5px; color: var(--ops-muted); font-variant-numeric: tabular-nums; }
+.ops .dd-empty { padding: 12px; text-align: center; color: var(--ops-muted); font-size: 12px; }
+.ops .dd-apply { margin: 6px; width: calc(100% - 12px); cursor: pointer; font: inherit; font-weight: 800; font-size: 12px; color: #fff; background: var(--ops-brand); border: 1px solid var(--ops-brand); border-radius: 8px; padding: 8px 10px; }
+.ops .dd-apply:hover { background: var(--ops-brand-dark); }
+.ops .dd-clear { margin-top: 8px; width: 100%; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; color: var(--ops-brand-dark); background: #fff; border: 1px solid var(--ops-brand); border-radius: 8px; padding: 7px 10px; }
+.ops .dd-clear:hover { background: var(--ops-brand-tint-2); }

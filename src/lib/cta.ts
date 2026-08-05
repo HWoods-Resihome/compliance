@@ -3,28 +3,26 @@
  *
  * Pulls open tickets across a configurable set of ticket pipelines (see
  * `pipelines.ts`) and turns them into a "what needs action" list, sortable by
- * due date and groupable by portfolio / organization / region / state /
- * address / pipeline / stage.
+ * due date and groupable by pipeline / stage / ticket owner / portfolio /
+ * organization / region / state / address.
+ *
+ * FIELD MAPPING (discovered from the live portal, overridable via env):
+ *   due date      → follow_up_date        (HUBSPOT_DUE_DATE_PROPERTY)
+ *   address       → full_address          (HUBSPOT_ADDRESS_PROPERTY)
+ *   portfolio     → portfolio             (HUBSPOT_PORTFOLIO_PROPERTY)
+ *   organization  → entity_name           (HUBSPOT_ORGANIZATION_PROPERTY)
+ *   state/region  → derived from the address (no ticket state field); a ticket
+ *                   state/region property can be supplied via env to override.
+ *   ticket owner  → hubspot_owner_id, resolved to a name via /crm/v3/owners.
+ *
+ * Related custom objects (for association-based enrichment, future): Communities
+ * = 2-56454860, Properties = 2-10767494, HOAs = 2-33611359, Municipalities =
+ * 2-57157482.
  *
  * Live against HubSpot when `HUBSPOT_TOKEN` is set; otherwise it degrades
- * gracefully. A `demo` mode returns representative sample rows so the skeleton
- * is reviewable without a token.
- *
- * FIELD CONFIG (the important part for wiring this up live): HubSpot tickets
- * don't carry a standard due-date/address/portfolio/etc., so those come from
- * per-portal property names supplied via env. Only the properties whose env var
- * is set are requested from HubSpot (requesting an unknown property errors), so
- * this is safe to ship before the exact names are confirmed:
- *
- *   HUBSPOT_DUE_DATE_PROPERTY      e.g. "due_date" / "hs_nextactivitydate"
- *   HUBSPOT_ADDRESS_PROPERTY       e.g. "property_address"
- *   HUBSPOT_STATE_PROPERTY         e.g. "state"
- *   HUBSPOT_REGION_PROPERTY        e.g. "region"           (else derived from state)
- *   HUBSPOT_PORTFOLIO_PROPERTY     e.g. "portfolio"
- *   HUBSPOT_ORGANIZATION_PROPERTY  e.g. "organization" / "owner_entity"
+ * gracefully. A `demo` mode returns sample rows for review without a token.
  */
 
-import { unstable_cache } from "next/cache";
 import {
   getPipeline,
   getStage,
@@ -37,6 +35,14 @@ const HUBSPOT_BASE = "https://api.hubapi.com";
 
 /** HubSpot portal id for building deep links back to records. */
 export const HUBSPOT_PORTAL_ID = "22536354";
+
+/** Related custom-object ids in this portal (for association enrichment). */
+export const OBJECT_IDS = {
+  communities: "2-56454860",
+  properties: "2-10767494",
+  hoas: "2-33611359",
+  municipalities: "2-57157482",
+};
 
 export class HubSpotNotConfiguredError extends Error {
   constructor() {
@@ -56,14 +62,17 @@ function env(name: string): string | undefined {
   return v && v.trim().length > 0 ? v.trim() : undefined;
 }
 
-/** Configurable ticket property names (only the set ones are requested/used). */
+/**
+ * Configurable ticket property names, defaulted to the portal's real fields.
+ * `state`/`region` default to null → derived from the address.
+ */
 export const FIELD_CONFIG = {
-  dueDate: env("HUBSPOT_DUE_DATE_PROPERTY"),
-  address: env("HUBSPOT_ADDRESS_PROPERTY"),
-  state: env("HUBSPOT_STATE_PROPERTY"),
-  region: env("HUBSPOT_REGION_PROPERTY"),
-  portfolio: env("HUBSPOT_PORTFOLIO_PROPERTY"),
-  organization: env("HUBSPOT_ORGANIZATION_PROPERTY"),
+  dueDate: env("HUBSPOT_DUE_DATE_PROPERTY") ?? "follow_up_date",
+  address: env("HUBSPOT_ADDRESS_PROPERTY") ?? "full_address",
+  state: env("HUBSPOT_STATE_PROPERTY") ?? null,
+  region: env("HUBSPOT_REGION_PROPERTY") ?? null,
+  portfolio: env("HUBSPOT_PORTFOLIO_PROPERTY") ?? "portfolio",
+  organization: env("HUBSPOT_ORGANIZATION_PROPERTY") ?? "entity_name",
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -101,11 +110,41 @@ async function hs(path: string, init?: RequestInit, attempt = 0): Promise<any> {
   return res.json();
 }
 
+// ── Owner name resolution (cached) ───────────────────────────────────────────
+
+let ownerCache: { at: number; map: Map<string, string> } | null = null;
+const OWNER_TTL_MS = 5 * 60 * 1000;
+
+async function getOwnerMap(): Promise<Map<string, string>> {
+  if (ownerCache && Date.now() - ownerCache.at < OWNER_TTL_MS) {
+    return ownerCache.map;
+  }
+  const map = new Map<string, string>();
+  let after: string | undefined;
+  for (let page = 0; page < 20; page++) {
+    const qs = new URLSearchParams({ limit: "100" });
+    if (after) qs.set("after", after);
+    const data = (await hs(`/crm/v3/owners?${qs.toString()}`)) as {
+      results?: { id: string; firstName?: string; lastName?: string; email?: string }[];
+      paging?: { next?: { after?: string } };
+    };
+    for (const o of data.results ?? []) {
+      const name = [o.firstName, o.lastName].filter(Boolean).join(" ").trim();
+      map.set(String(o.id), name || o.email || `Owner ${o.id}`);
+    }
+    after = data.paging?.next?.after;
+    if (!after) break;
+  }
+  ownerCache = { at: Date.now(), map };
+  return map;
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type GroupDimension =
   | "pipeline"
   | "stage"
+  | "owner"
   | "portfolio"
   | "organization"
   | "region"
@@ -115,6 +154,7 @@ export type GroupDimension =
 export const GROUP_DIMENSIONS: Array<{ key: GroupDimension; label: string }> = [
   { key: "pipeline", label: "Pipeline" },
   { key: "stage", label: "Stage" },
+  { key: "owner", label: "Ticket Owner" },
   { key: "portfolio", label: "Portfolio" },
   { key: "organization", label: "Organization" },
   { key: "region", label: "Region" },
@@ -123,6 +163,13 @@ export const GROUP_DIMENSIONS: Array<{ key: GroupDimension; label: string }> = [
 ];
 
 export type DueBucket = "overdue" | "today" | "week" | "later" | "none";
+const BUCKET_ORDER: Record<DueBucket, number> = {
+  overdue: 0,
+  today: 1,
+  week: 2,
+  later: 3,
+  none: 4,
+};
 
 export type CtaItem = {
   id: string;
@@ -133,6 +180,7 @@ export type CtaItem = {
   stageLabel: string;
   priority: string | null;
   ownerId: string | null;
+  ownerName: string | null;
   dueDate: string | null;
   dueBucket: DueBucket;
   address: string | null;
@@ -157,13 +205,39 @@ export type CtaResult = {
   groupBy: GroupDimension;
   monitoredPipelineIds: string[];
   totals: { total: number; overdue: number; dueToday: number; dueThisWeek: number };
+  topGroup: { label: string; count: number } | null;
   generatedAt: string;
-  live: boolean; // true = from HubSpot, false = demo/sample
+  live: boolean;
   note: string | null;
 };
 
 function ticketUrl(id: string): string {
   return `https://app.hubspot.com/contacts/${HUBSPOT_PORTAL_ID}/record/0-5/${id}`;
+}
+
+// ── Address → state parsing ──────────────────────────────────────────────────
+
+const STATE_ABBR = new Set([
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS",
+  "KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY",
+  "NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV",
+  "WI","WY","DC",
+]);
+
+/** Pull a 2-letter state out of a full address (e.g. "…, Anderson, SC - 29625"). */
+function parseState(address: string | null): string | null {
+  if (!address) return null;
+  // Prefer a 2-letter token immediately before a ZIP.
+  const zipMatch = address.match(/\b([A-Za-z]{2})\b[\s,-]*\d{5}(?:-\d{4})?/);
+  if (zipMatch && STATE_ABBR.has(zipMatch[1].toUpperCase())) {
+    return zipMatch[1].toUpperCase();
+  }
+  // Else the last standalone 2-letter token that is a real state.
+  const tokens = address.toUpperCase().match(/\b[A-Z]{2}\b/g) ?? [];
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    if (STATE_ABBR.has(tokens[i])) return tokens[i];
+  }
+  return null;
 }
 
 // ── Due-date bucketing ───────────────────────────────────────────────────────
@@ -191,6 +265,8 @@ function groupKeyFor(item: CtaItem, dim: GroupDimension): string {
       return item.pipelineLabel;
     case "stage":
       return `${item.pipelineLabel} · ${item.stageLabel}`;
+    case "owner":
+      return item.ownerName ?? item.ownerId ?? UNASSIGNED;
     case "portfolio":
       return item.portfolio ?? UNASSIGNED;
     case "organization":
@@ -218,7 +294,6 @@ function groupItems(items: CtaItem[], dim: GroupDimension): CtaGroup[] {
     overdue: groupItems.filter((i) => i.dueBucket === "overdue").length,
     items: groupItems,
   }));
-  // Most-urgent groups first (by overdue, then size), Unassigned last.
   groups.sort((a, b) => {
     if (a.key === UNASSIGNED) return 1;
     if (b.key === UNASSIGNED) return -1;
@@ -232,87 +307,122 @@ function groupItems(items: CtaItem[], dim: GroupDimension): CtaGroup[] {
 async function fetchOpenTickets(pipelineIds: string[]): Promise<CtaItem[]> {
   if (pipelineIds.length === 0) return [];
 
-  // Base properties always safe to request. Configurable extras only when set.
-  const properties = [
-    "subject",
-    "hs_pipeline",
-    "hs_pipeline_stage",
-    "hs_ticket_priority",
-    "hubspot_owner_id",
-    "createdate",
-    "hs_lastmodifieddate",
-    ...Object.values(FIELD_CONFIG).filter((v): v is string => !!v),
+  const extra = [FIELD_CONFIG.dueDate, FIELD_CONFIG.address, FIELD_CONFIG.state, FIELD_CONFIG.region, FIELD_CONFIG.portfolio, FIELD_CONFIG.organization].filter(
+    (v): v is string => !!v,
+  );
+  const properties = Array.from(
+    new Set([
+      "subject",
+      "hs_pipeline",
+      "hs_pipeline_stage",
+      "hs_ticket_priority",
+      "hubspot_owner_id",
+      "createdate",
+      "hs_lastmodifieddate",
+      ...extra,
+    ]),
+  );
+
+  // Fetch the most recently-touched open tickets (what's actively being
+  // worked). Due-date urgency is applied client-side below, so due-dated
+  // tickets still float to the top regardless of how sparse the field is.
+  const sorts = [{ propertyName: "hs_lastmodifieddate", direction: "DESCENDING" }];
+
+  // Only fetch actionable tickets: exclude each selected pipeline's terminal
+  // stages in the query (client-side filtering alone fails, because sorting by
+  // due date surfaces the oldest — and mostly closed — tickets first).
+  const terminalStageIds = Array.from(
+    new Set(
+      pipelineIds.flatMap((id) =>
+        (getPipeline(id)?.stages ?? []).filter((s) => !isOpenStageLabel(s.label)).map((s) => s.id),
+      ),
+    ),
+  );
+  const ticketFilters: Array<Record<string, unknown>> = [
+    { propertyName: "hs_pipeline", operator: "IN", values: pipelineIds },
   ];
-
-  // Sort by due date when configured; otherwise most-recently-touched first.
-  const sorts = FIELD_CONFIG.dueDate
-    ? [{ propertyName: FIELD_CONFIG.dueDate, direction: "ASCENDING" }]
-    : [{ propertyName: "hs_lastmodifieddate", direction: "DESCENDING" }];
-
-  const out: CtaItem[] = [];
-  let after: string | undefined;
-  const MAX_PAGES = 5; // up to 500 most-urgent open tickets — enough for a skeleton
-
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const data = (await hs(`/crm/v3/objects/tickets/search`, {
-      method: "POST",
-      body: JSON.stringify({
-        filterGroups: [
-          { filters: [{ propertyName: "hs_pipeline", operator: "IN", values: pipelineIds }] },
-        ],
-        sorts,
-        properties,
-        limit: 100,
-        ...(after ? { after } : {}),
-      }),
-    })) as {
-      results: { id: string; properties: Record<string, string | null> }[];
-      paging?: { next?: { after?: string } };
-    };
-
-    for (const r of data.results ?? []) {
-      const p = r.properties;
-      const pipelineId = p.hs_pipeline ?? "";
-      const stageId = p.hs_pipeline_stage ?? "";
-      const pipeline = getPipeline(pipelineId);
-      const stage = getStage(pipelineId, stageId);
-      const stageLabel = stage?.label ?? stageId;
-      // CTA list = actionable stages only.
-      if (stage && !isOpenStageLabel(stage.label)) continue;
-
-      const state = FIELD_CONFIG.state ? p[FIELD_CONFIG.state] ?? null : null;
-      const region = FIELD_CONFIG.region
-        ? p[FIELD_CONFIG.region] ?? null
-        : state
-          ? regionForState(state)
-          : null;
-      const dueDate = FIELD_CONFIG.dueDate ? p[FIELD_CONFIG.dueDate] ?? null : null;
-
-      out.push({
-        id: r.id,
-        subject: p.subject || "(no subject)",
-        pipelineId,
-        pipelineLabel: pipeline?.label ?? pipelineId,
-        stageId,
-        stageLabel,
-        priority: p.hs_ticket_priority ?? null,
-        ownerId: p.hubspot_owner_id ?? null,
-        dueDate,
-        dueBucket: bucketFor(dueDate),
-        address: FIELD_CONFIG.address ? p[FIELD_CONFIG.address] ?? null : null,
-        state,
-        region,
-        portfolio: FIELD_CONFIG.portfolio ? p[FIELD_CONFIG.portfolio] ?? null : null,
-        organization: FIELD_CONFIG.organization ? p[FIELD_CONFIG.organization] ?? null : null,
-        url: ticketUrl(r.id),
-      });
-    }
-
-    after = data.paging?.next?.after;
-    if (!after) break;
+  if (terminalStageIds.length > 0) {
+    ticketFilters.push({
+      propertyName: "hs_pipeline_stage",
+      operator: "NOT_IN",
+      values: terminalStageIds,
+    });
   }
 
-  return out;
+  const [ownerMap, raw] = await Promise.all([
+    getOwnerMap().catch(() => new Map<string, string>()),
+    (async () => {
+      const out: { id: string; properties: Record<string, string | null> }[] = [];
+      let after: string | undefined;
+      const MAX_PAGES = 5; // up to 500 most-urgent open tickets
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const data = (await hs(`/crm/v3/objects/tickets/search`, {
+          method: "POST",
+          body: JSON.stringify({
+            filterGroups: [{ filters: ticketFilters }],
+            sorts,
+            properties,
+            limit: 100,
+            ...(after ? { after } : {}),
+          }),
+        })) as {
+          results: { id: string; properties: Record<string, string | null> }[];
+          paging?: { next?: { after?: string } };
+        };
+        out.push(...(data.results ?? []));
+        after = data.paging?.next?.after;
+        if (!after) break;
+      }
+      return out;
+    })(),
+  ]);
+
+  const items: CtaItem[] = [];
+  for (const r of raw) {
+    const p = r.properties;
+    const pipelineId = p.hs_pipeline ?? "";
+    const stageId = p.hs_pipeline_stage ?? "";
+    const pipeline = getPipeline(pipelineId);
+    const stage = getStage(pipelineId, stageId);
+    if (stage && !isOpenStageLabel(stage.label)) continue; // actionable stages only
+
+    const address = FIELD_CONFIG.address ? p[FIELD_CONFIG.address] ?? null : null;
+    const state = (FIELD_CONFIG.state ? p[FIELD_CONFIG.state] ?? null : null) ?? parseState(address);
+    const region =
+      (FIELD_CONFIG.region ? p[FIELD_CONFIG.region] ?? null : null) ??
+      (state ? regionForState(state) : null);
+    const dueDate = FIELD_CONFIG.dueDate ? p[FIELD_CONFIG.dueDate] ?? null : null;
+    const ownerId = p.hubspot_owner_id ?? null;
+
+    items.push({
+      id: r.id,
+      subject: p.subject || "(no subject)",
+      pipelineId,
+      pipelineLabel: pipeline?.label ?? pipelineId,
+      stageId,
+      stageLabel: stage?.label ?? stageId,
+      priority: p.hs_ticket_priority ?? null,
+      ownerId,
+      ownerName: ownerId ? ownerMap.get(ownerId) ?? null : null,
+      dueDate,
+      dueBucket: bucketFor(dueDate),
+      address,
+      state,
+      region,
+      portfolio: FIELD_CONFIG.portfolio ? p[FIELD_CONFIG.portfolio] ?? null : null,
+      organization: FIELD_CONFIG.organization ? p[FIELD_CONFIG.organization] ?? null : null,
+      url: ticketUrl(r.id),
+    });
+  }
+
+  // Client-side urgency sort: overdue → today → week → later → none, then date.
+  items.sort((a, b) => {
+    const ba = BUCKET_ORDER[a.dueBucket] - BUCKET_ORDER[b.dueBucket];
+    if (ba !== 0) return ba;
+    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    return 0;
+  });
+  return items;
 }
 
 // ── Demo / sample (for review without a token) ───────────────────────────────
@@ -324,20 +434,21 @@ function demoItems(): CtaItem[] {
     d.setDate(d.getDate() + n);
     return d.toISOString();
   };
-  const rows: Array<Partial<CtaItem> & { pipelineId: string; stageId: string; subject: string; due: number | null; address: string; state: string; portfolio: string; organization: string }> = [
-    { pipelineId: "80932995", stageId: "153030989", subject: "Activate utilities — new move-in", due: -2, address: "425 Country Club Ln, Anderson, SC", state: "SC", portfolio: "SFR", organization: "Hudson Oak" },
-    { pipelineId: "74152797", stageId: "171460627", subject: "Deactivation needs attention — final bill", due: -1, address: "710 Ali St, Temple, GA", state: "GA", portfolio: "DRC", organization: "Rocklyn Homes" },
-    { pipelineId: "81076231", stageId: "1064300863", subject: "Occupancy confirmation required", due: 0, address: "18 W Michigan St, Greenfield, IN", state: "IN", portfolio: "SFR", organization: "Appreciation Homes" },
-    { pipelineId: "710375823", stageId: "1037618972", subject: "HOA violation — pending association", due: 1, address: "9190 SW Spillers Dr, Covington, GA", state: "GA", portfolio: "SFR", organization: "SFR" },
-    { pipelineId: "82532219", stageId: "219848865", subject: "Pre-lease: pending activation of utilities", due: 3, address: "1609 Hoofprint Ct, Fruitland Park, FL", state: "FL", portfolio: "DRC", organization: "RB FL Development" },
-    { pipelineId: "836574598", stageId: "1337392284", subject: "PM Accounting — pending utility team", due: 5, address: "30 Allison Ct, Stockbridge, GA", state: "GA", portfolio: "SFR", organization: "Newstar" },
-    { pipelineId: "887434516", stageId: "1334736698", subject: "Association verification — new", due: 9, address: "20942 Patriot Park Ln, Katy, TX", state: "TX", portfolio: "SFR", organization: "ROI" },
-    { pipelineId: "923304266", stageId: "1412071046", subject: "Lien action — pending payment", due: 12, address: "104 Firefly Ln, Huntsville, AL", state: "AL", portfolio: "SFR", organization: "ROI" },
+  const rows = [
+    { pipelineId: "80932995", stageId: "153030989", subject: "Activate utilities — new move-in", due: -2, address: "425 Country Club Ln, Anderson, SC 29625", portfolio: "SFR", organization: "Hudson Oak", owner: "Jobelle Cruz" },
+    { pipelineId: "74152797", stageId: "171460627", subject: "Deactivation needs attention — final bill", due: -1, address: "710 Ali St, Temple, GA 30179", portfolio: "DRC", organization: "Rocklyn Homes", owner: "Beverly Freeman" },
+    { pipelineId: "81076231", stageId: "1064300863", subject: "Occupancy confirmation required", due: 0, address: "18 W Michigan St, Greenfield, IN 46140", portfolio: "SFR", organization: "Appreciation Homes", owner: "Jacob Lee" },
+    { pipelineId: "710375823", stageId: "1037618972", subject: "HOA violation — pending association", due: 1, address: "9190 SW Spillers Dr, Covington, GA 30014", portfolio: "SFR", organization: "SFR", owner: "Jobelle Cruz" },
+    { pipelineId: "82532219", stageId: "219848865", subject: "Pre-lease: pending activation of utilities", due: 3, address: "1609 Hoofprint Ct, Fruitland Park, FL 34731", portfolio: "DRC", organization: "RB FL Development", owner: "Beverly Freeman" },
+    { pipelineId: "836574598", stageId: "1337392284", subject: "PM Accounting — pending utility team", due: 5, address: "30 Allison Ct, Stockbridge, GA 30281", portfolio: "SFR", organization: "Newstar", owner: "Jacob Lee" },
+    { pipelineId: "887434516", stageId: "1334736698", subject: "Association verification — new", due: 9, address: "20942 Patriot Park Ln, Katy, TX 77449", portfolio: "SFR", organization: "ROI", owner: "Jobelle Cruz" },
+    { pipelineId: "923304266", stageId: "1412071046", subject: "Lien action — pending payment", due: 12, address: "104 Firefly Ln, Huntsville, AL 35810", portfolio: "SFR", organization: "ROI", owner: "Beverly Freeman" },
   ];
   return rows.map((r, i) => {
     const pipeline = getPipeline(r.pipelineId);
     const stage = getStage(r.pipelineId, r.stageId);
-    const dueDate = r.due === null ? null : day(r.due);
+    const dueDate = day(r.due);
+    const state = parseState(r.address);
     return {
       id: `demo-${i}`,
       subject: r.subject,
@@ -346,12 +457,13 @@ function demoItems(): CtaItem[] {
       stageId: r.stageId,
       stageLabel: stage?.label ?? r.stageId,
       priority: i % 3 === 0 ? "HIGH" : i % 3 === 1 ? "MEDIUM" : "LOW",
-      ownerId: null,
+      ownerId: `demo-owner-${i % 3}`,
+      ownerName: r.owner,
       dueDate,
       dueBucket: bucketFor(dueDate, now),
       address: r.address,
-      state: r.state,
-      region: regionForState(r.state),
+      state,
+      region: state ? regionForState(state) : null,
       portfolio: r.portfolio,
       organization: r.organization,
       url: "#",
@@ -368,18 +480,19 @@ function assemble(
   live: boolean,
   note: string | null,
 ): CtaResult {
-  const totals = {
-    total: items.length,
-    overdue: items.filter((i) => i.dueBucket === "overdue").length,
-    dueToday: items.filter((i) => i.dueBucket === "today").length,
-    dueThisWeek: items.filter((i) => i.dueBucket === "week").length,
-  };
+  const groups = groupItems(items, groupBy);
   return {
     items,
-    groups: groupItems(items, groupBy),
+    groups,
     groupBy,
     monitoredPipelineIds: pipelineIds,
-    totals,
+    totals: {
+      total: items.length,
+      overdue: items.filter((i) => i.dueBucket === "overdue").length,
+      dueToday: items.filter((i) => i.dueBucket === "today").length,
+      dueThisWeek: items.filter((i) => i.dueBucket === "week").length,
+    },
+    topGroup: groups[0] ? { label: groups[0].label, count: groups[0].count } : null,
     generatedAt: new Date().toISOString(),
     live,
     note,
@@ -398,21 +511,12 @@ export async function getCtaBoard(q: CtaQuery = {}): Promise<CtaResult> {
     q.pipelineIds && q.pipelineIds.length > 0 ? q.pipelineIds : monitoredPipelineIds();
 
   if (q.demo) {
-    return assemble(
-      demoItems(),
-      groupBy,
-      pipelineIds,
-      false,
-      "Sample data for review — not live HubSpot tickets.",
-    );
+    return assemble(demoItems(), groupBy, pipelineIds, false, "Sample data for review — not live HubSpot tickets.");
   }
 
   try {
     const items = await fetchOpenTickets(pipelineIds);
-    const note = FIELD_CONFIG.dueDate
-      ? null
-      : "Due-date sorting/grouping is off until HUBSPOT_DUE_DATE_PROPERTY is set (see docs). Address/portfolio/etc. likewise depend on their property env vars.";
-    return assemble(items, groupBy, pipelineIds, true, note);
+    return assemble(items, groupBy, pipelineIds, true, null);
   } catch (err) {
     if (err instanceof HubSpotNotConfiguredError) {
       return assemble(
@@ -420,20 +524,9 @@ export async function getCtaBoard(q: CtaQuery = {}): Promise<CtaResult> {
         groupBy,
         pipelineIds,
         false,
-        "HubSpot is not configured (HUBSPOT_TOKEN missing). Showing an empty board — add ?demo=1 to preview with sample data.",
+        "HubSpot is not configured (HUBSPOT_TOKEN missing). Add ?demo=1 to preview with sample data.",
       );
     }
     throw err;
   }
-}
-
-/** Cached board (30s) for page rendering. */
-export function getCachedCtaBoard(q: CtaQuery = {}): Promise<CtaResult> {
-  const key = [
-    "cta-board",
-    (q.pipelineIds ?? []).join(",") || "default",
-    q.groupBy ?? "pipeline",
-    q.demo ? "demo" : "live",
-  ];
-  return unstable_cache(() => getCtaBoard(q), key, { revalidate: 30 })();
 }

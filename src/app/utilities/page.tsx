@@ -13,14 +13,17 @@ import {
   pipelinesByCategory,
   monitoredPipelineIds,
 } from "@/lib/pipelines";
+import { GroupByDropdown, PipelinesDropdown, DemoToggle } from "./controls";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 const ALL_IDS = PIPELINES.map((p) => p.id);
 const GROUP_KEYS = new Set(GROUP_DIMENSIONS.map((g) => g.key));
-
-// ── URL helpers ──────────────────────────────────────────────────────────────
+const CATALOG = pipelinesByCategory().map((c) => ({
+  category: c.category,
+  pipelines: c.pipelines.map((p) => ({ id: p.id, label: p.label, stages: p.stages.length })),
+}));
 
 type State = { pipelines: string[]; groupBy: GroupDimension; demo: boolean };
 
@@ -29,25 +32,14 @@ function hrefWith(s: Partial<State>, base: State): string {
   const groupBy = s.groupBy ?? base.groupBy;
   const demo = s.demo ?? base.demo;
   const params = new URLSearchParams();
-  // Only encode pipelines when they differ from the monitored default.
   const def = monitoredPipelineIds();
-  const same =
-    pipelines.length === def.length && pipelines.every((id) => def.includes(id));
+  const same = pipelines.length === def.length && pipelines.every((id) => def.includes(id));
   if (!same) params.set("pipelines", pipelines.join(","));
   if (groupBy !== "pipeline") params.set("groupBy", groupBy);
   if (demo) params.set("demo", "1");
   const qs = params.toString();
   return `/utilities${qs ? `?${qs}` : ""}`;
 }
-
-function togglePipeline(id: string, base: State): string {
-  const set = new Set(base.pipelines);
-  if (set.has(id)) set.delete(id);
-  else set.add(id);
-  return hrefWith({ pipelines: ALL_IDS.filter((x) => set.has(x)) }, base);
-}
-
-// ── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function UtilitiesPage({
   searchParams,
@@ -66,6 +58,8 @@ export default async function UtilitiesPage({
       : monitoredPipelineIds();
 
   const base: State = { pipelines, groupBy, demo };
+  const defaults = monitoredPipelineIds();
+  const dimLabel = GROUP_DIMENSIONS.find((d) => d.key === groupBy)?.label ?? groupBy;
 
   let board: CtaResult | null = null;
   let errorMessage: string | null = null;
@@ -77,13 +71,42 @@ export default async function UtilitiesPage({
 
   return (
     <div className="app">
-      <Rail base={base} />
+      {/* ── Rail (dropdown controls) ── */}
+      <aside className="rail">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="logo" src="/resihome-logo.png" alt="ResiHome" />
+        <div className="accent" />
+        <div className="tagline">OPERATIONS · ACTION ITEMS</div>
+
+        <div className="slicer">
+          <h4>Group by</h4>
+          <GroupByDropdown dims={GROUP_DIMENSIONS} base={base} defaults={defaults} allIds={ALL_IDS} />
+        </div>
+
+        <div className="slicer">
+          <h4>Monitored pipelines</h4>
+          <PipelinesDropdown catalog={CATALOG} base={base} defaults={defaults} allIds={ALL_IDS} />
+        </div>
+
+        <div className="slicer">
+          <h4>View</h4>
+          <DemoToggle base={base} defaults={defaults} allIds={ALL_IDS} />
+          <p className="railnote">
+            {pipelines.length} of {PIPELINE_COUNT} pipelines · {STAGE_COUNT} stages total.
+            Grouping by portfolio / organization / owner / region / state / address reads
+            each ticket&apos;s fields (address parsed for state).
+          </p>
+        </div>
+
+        <div className="slicer">
+          <h4>Reference</h4>
+          <Link className="raillink" href="/utility-guide">Utility Guide →</Link>
+          <Link className="raillink" href="/">Compliance home →</Link>
+        </div>
+      </aside>
+
+      {/* ── Canvas ── */}
       <main className="canvas">
-        <p className="crumb">
-          <Link href="/">← Compliance</Link>
-          {" · "}
-          <Link href="/utility-guide">Utility Guide</Link>
-        </p>
         <div className="pagehead">
           <h1>Action Items</h1>
           <div className="ctx">
@@ -92,39 +115,44 @@ export default async function UtilitiesPage({
                 <span className={`due ${board.live ? "week" : "later"}`}>
                   {board.live ? "live · HubSpot" : demo ? "sample data" : "not configured"}
                 </span>
-                <span>{pipelines.length} pipelines monitored</span>
+                <span>{pipelines.length} pipelines</span>
                 <span>·</span>
-                <span>grouped by {labelFor(groupBy)}</span>
+                <span>grouped by {dimLabel}</span>
               </>
             )}
           </div>
         </div>
 
-        {board?.note && (
-          <div className={`banner ${demo ? "demo" : ""}`}>{board.note}</div>
-        )}
+        {board?.note && <div className={`banner ${demo ? "demo" : ""}`}>{board.note}</div>}
         {errorMessage && <div className="banner">Could not load: {errorMessage}</div>}
 
         {board && (
           <>
+            {/* Dynamic KPIs — reflect the selected pipelines + the group-by */}
             <div className="grid kpi-row">
-              <Kpi label="Open action items" value={board.totals.total} />
+              <Kpi label="Open action items" value={board.totals.total} sub={`${pipelines.length} pipelines`} />
               <Kpi label="Overdue" value={board.totals.overdue} tone={board.totals.overdue > 0 ? "bad" : undefined} />
-              <Kpi label="Due today" value={board.totals.dueToday} tone={board.totals.dueToday > 0 ? "warn" : undefined} />
-              <Kpi label="Due this week" value={board.totals.dueThisWeek} />
-              <Kpi label="Pipelines / stages" value={`${pipelines.length} / ${PIPELINE_COUNT}`} sub={`${STAGE_COUNT} stages total`} />
+              <Kpi
+                label="Due ≤ 7 days"
+                value={board.totals.dueToday + board.totals.dueThisWeek}
+                sub={`${board.totals.dueToday} today`}
+                tone={board.totals.dueToday + board.totals.dueThisWeek > 0 ? "warn" : undefined}
+              />
+              <Kpi label={`${dimLabel} groups`} value={board.groups.length} />
+              <Kpi
+                label={`Busiest ${dimLabel.toLowerCase()}`}
+                value={board.topGroup ? board.topGroup.label : "—"}
+                sub={board.topGroup ? `${board.topGroup.count} items` : undefined}
+                small
+              />
             </div>
 
-            {/* Group-by selector */}
+            {/* Group-by chips (below the KPI card) — includes Ticket Owner */}
             <div className="toolbar">
               <span className="lbl">Group by</span>
               <div className="chips">
                 {GROUP_DIMENSIONS.map((g) => (
-                  <Link
-                    key={g.key}
-                    className={`chip ${groupBy === g.key ? "on" : ""}`}
-                    href={hrefWith({ groupBy: g.key }, base)}
-                  >
+                  <Link key={g.key} className={`chip ${groupBy === g.key ? "on" : ""}`} href={hrefWith({ groupBy: g.key }, base)}>
                     {g.label}
                   </Link>
                 ))}
@@ -142,6 +170,7 @@ export default async function UtilitiesPage({
                     <th>Address</th>
                     <th>State / region</th>
                     <th>Portfolio / org</th>
+                    <th>Owner</th>
                     <th>Priority</th>
                     <th></th>
                   </tr>
@@ -149,7 +178,7 @@ export default async function UtilitiesPage({
                 <tbody>
                   {board.groups.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="empty">
+                      <td colSpan={9} className="empty">
                         No open action items for the selected pipelines.
                         {!demo && !board.live && (
                           <>
@@ -161,90 +190,22 @@ export default async function UtilitiesPage({
                     </tr>
                   )}
                   {board.groups.map((grp) => (
-                    <GroupBlock key={grp.key} label={grp.label} count={grp.count} overdue={grp.overdue} items={grp.items} groupBy={groupBy} />
+                    <GroupBlock key={grp.key} label={grp.label} count={grp.count} overdue={grp.overdue} items={grp.items} />
                   ))}
                 </tbody>
               </table>
             </div>
 
             <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>
-              Skeleton for review · {board.live ? "live from HubSpot" : "not live"} ·
-              generated {new Date(board.generatedAt).toLocaleString("en-US")}.
-              Address / state / region / portfolio / organization populate from the
-              ticket property names configured in env (see docs).
+              {board.live ? "Live from HubSpot" : "Not live"} · generated{" "}
+              {new Date(board.generatedAt).toLocaleString("en-US")} · due date =
+              {" "}<code>follow_up_date</code> · address = <code>full_address</code> ·
+              owner resolved from <code>hubspot_owner_id</code>. Fields overridable via env.
             </p>
           </>
         )}
       </main>
     </div>
-  );
-}
-
-// ── Rail (the menu) ──────────────────────────────────────────────────────────
-
-function Rail({ base }: { base: State }) {
-  const selected = new Set(base.pipelines);
-  return (
-    <aside className="rail">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="logo" src="/resihome-logo.png" alt="ResiHome" />
-      <div className="accent" />
-      <div className="tagline">OPERATIONS · ACTION ITEMS</div>
-
-      <div className="slicer">
-        <h4>Group pipelines by</h4>
-        <div className="chips">
-          {GROUP_DIMENSIONS.map((g) => (
-            <Link key={g.key} className={`chip ${base.groupBy === g.key ? "on" : ""}`} href={hrefWith({ groupBy: g.key }, base)}>
-              {g.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <div className="slicer">
-        <h4>
-          Monitored pipelines <span className="muted">({selected.size})</span>
-        </h4>
-        <div className="chips" style={{ marginBottom: 8 }}>
-          <Link className="chip" href={hrefWith({ pipelines: ALL_IDS }, base)}>All</Link>
-          <Link className="chip" href={hrefWith({ pipelines: [] }, base)}>None</Link>
-          <Link className="chip" href="/utilities">Default</Link>
-        </div>
-        {pipelinesByCategory().map((cat) => (
-          <div className="cat" key={cat.category}>
-            <h5>{cat.category}</h5>
-            <div className="chips">
-              {cat.pipelines.map((p) => (
-                <Link
-                  key={p.id}
-                  className={`chip ${selected.has(p.id) ? "on" : ""}`}
-                  href={togglePipeline(p.id, base)}
-                  title={`${p.stages.length} stages · id ${p.id}`}
-                >
-                  {p.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="slicer">
-        <h4>Filters</h4>
-        <p className="railnote">
-          Portfolio / organization / region / state / address are grouped from the
-          associated property fields on each ticket. Wire the HubSpot property
-          names via env to filter and group live.
-        </p>
-        {!base.demo && (
-          <Link className="raillink" href={hrefWith({ demo: true }, base)}>Preview with sample data →</Link>
-        )}
-        {base.demo && (
-          <Link className="raillink" href={hrefWith({ demo: false }, base)}>Exit sample preview →</Link>
-        )}
-      </div>
-    </aside>
   );
 }
 
@@ -255,16 +216,18 @@ function Kpi({
   value,
   sub,
   tone,
+  small,
 }: {
   label: string;
   value: number | string;
   sub?: string;
   tone?: "bad" | "warn" | "good";
+  small?: boolean;
 }) {
   return (
     <div className="card kpi">
       <div className="label">{label}</div>
-      <div className={`value ${tone ?? ""}`}>
+      <div className={`value ${tone ?? ""}`} style={small ? { fontSize: 15, lineHeight: 1.25 } : undefined}>
         {typeof value === "number" ? value.toLocaleString() : value}
       </div>
       {sub && <div className="sub">{sub}</div>}
@@ -277,18 +240,16 @@ function GroupBlock({
   count,
   overdue,
   items,
-  groupBy,
 }: {
   label: string;
   count: number;
   overdue: number;
   items: CtaItem[];
-  groupBy: GroupDimension;
 }) {
   return (
     <>
       <tr className="grouphead">
-        <td colSpan={8}>
+        <td colSpan={9}>
           {label} <span className="gcount">· {count}</span>
           {overdue > 0 && <span className="gover"> · {overdue} overdue</span>}
         </td>
@@ -313,6 +274,7 @@ function GroupBlock({
             {it.portfolio ?? "—"}
             {it.organization ? <span className="muted"> · {it.organization}</span> : ""}
           </td>
+          <td>{it.ownerName ?? (it.ownerId ? <span className="muted">#{it.ownerId}</span> : "—")}</td>
           <td>{it.priority ? <span className={`prio ${it.priority.toLowerCase()}`}>{it.priority}</span> : "—"}</td>
           <td>
             {it.url && it.url !== "#" ? (
@@ -350,8 +312,4 @@ function fmtDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function labelFor(g: GroupDimension): string {
-  return GROUP_DIMENSIONS.find((x) => x.key === g)?.label ?? g;
 }

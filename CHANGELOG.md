@@ -2,26 +2,37 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased] — Action-items (CTA) dashboard skeleton
+## [Unreleased] — Action-items (CTA) dashboard (live)
 
-### Added (skeleton — for review, not yet deployed to production)
+### Added
 - **HubSpot ticket-pipeline registry** (`src/lib/pipelines.ts`): a faithful,
   typed capture of all 45 ticket pipelines and every stage with HubSpot internal
   IDs, grouped into operational categories, with a `monitoredByDefault` flag and
   an open/terminal-stage heuristic.
-- **CTA data layer** (`src/lib/cta.ts`): pulls open tickets across a configurable
-  set of monitored pipelines, sorts by due date and buckets them
-  (overdue/today/this week/later), and groups by pipeline / stage / portfolio /
-  organization / region / state / address. Live against HubSpot when configured;
-  degrades gracefully; `demo` mode returns sample rows for review. Due-date and
-  grouping fields come from configurable ticket property names (`HUBSPOT_*_PROPERTY`).
+- **CTA data layer** (`src/lib/cta.ts`): pulls the most recently-active **open**
+  tickets across a configurable set of monitored pipelines (excluding each
+  pipeline's terminal stages in-query), buckets by due date
+  (overdue/today/this week/later) and groups by pipeline / stage / **ticket
+  owner** / portfolio / organization / region / state / address. Owner ids
+  resolve to names via `/crm/v3/owners` (cached). Live against HubSpot;
+  `demo` mode returns sample rows.
 - **`/utilities` Action-Items dashboard** (`src/app/utilities/`): mirrors the
   operations.resihome.com design (ResiHome pink on light, Raleway, slicer rail +
-  canvas, KPI cards, drill/group tables) — scoped under `.ops` so it doesn't
-  touch the existing dark theme. Rail lets you pick which pipelines to monitor
-  (by category) and the group-by dimension.
-- Home-page link to the board; `.env.example` documents the pipeline-id and
-  ticket-property config.
+  canvas, KPI cards, grouped tables) — scoped under `.ops` so it doesn't touch
+  the existing dark theme. The rail is **dropdown-driven** (a searchable,
+  categorized multi-select for monitored pipelines + a group-by select) and the
+  KPI cards are **dynamic** (totals, overdue, due ≤7d, group count, busiest
+  group) reacting to the pipeline selection and group-by.
+- **HubSpot field-name discovery** (`/api/hubspot/properties`, `listProperties`/
+  `listSchemas`, `scripts/hubspot-fields.mjs`) — used to map the live fields.
+
+### Field mapping (this portal, overridable via `HUBSPOT_*_PROPERTY`)
+- due date → `follow_up_date` · address → `full_address` · portfolio →
+  `portfolio` · organization → `entity_name` · owner → `hubspot_owner_id`
+  (resolved to a name) · state/region → derived from the address.
+- Related custom objects: Communities `2-56454860`, Properties `2-10767494`,
+  HOAs `2-33611359`, Municipalities `2-57157482`.
+- Home-page link to the board.
 
 ## [0.5.0] - 2026-08-04
 
