@@ -1,0 +1,1392 @@
+{
+ "builder": [
+  {
+   "portfolio": "DreamFinders",
+   "entity_name": "DFH Green River, LLC",
+   "community": "Sterling at Parker",
+   "electric_provider": "",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "",
+   "water_provider": "",
+   "sewer_provider": "",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "",
+   "resident_responsible": "",
+   "owner_responsible": "",
+   "notes": ""
+  },
+  {
+   "portfolio": "McKinley Homes",
+   "entity_name": "Array Park LLC",
+   "community": "The Collection at Array",
+   "electric_provider": "Georgia Power",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "N/A",
+   "water_provider": "City of Atlanta Water",
+   "sewer_provider": "City of Atlanta Water",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "TBD",
+   "resident_responsible": "",
+   "owner_responsible": "",
+   "notes": ""
+  },
+  {
+   "portfolio": "McKinley Homes",
+   "entity_name": "Oak Hill Residence Park LLC",
+   "community": "The Collection at Oak Hill",
+   "electric_provider": "Georgia Power",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "N/A",
+   "water_provider": "Bartow County Water Department",
+   "sewer_provider": "Bartow County Water Department",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "TBD",
+   "resident_responsible": "",
+   "owner_responsible": "",
+   "notes": ""
+  },
+  {
+   "portfolio": "McKinley Homes",
+   "entity_name": "Rivertown Park LLC",
+   "community": "The Collection at Brooke Rivertown",
+   "electric_provider": "Greystone Power",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "N/A",
+   "water_provider": "City of Atlanta Department of Watershed",
+   "sewer_provider": "City of Atlanta Department of Watershed",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "City of South Fulton (Billed thru taxes)",
+   "resident_responsible": "E/W/S",
+   "owner_responsible": "T (billed thru resihome)",
+   "notes": ""
+  },
+  {
+   "portfolio": "McKinley Homes",
+   "entity_name": "Wiltshire Park LLC",
+   "community": "The Collection at Wilshire",
+   "electric_provider": "Electric Power Board",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "N/A",
+   "water_provider": "City of Chattanooga",
+   "sewer_provider": "Tennessee American Water Company",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "TBD",
+   "resident_responsible": "",
+   "owner_responsible": "",
+   "notes": ""
+  },
+  {
+   "portfolio": "McKinley Homes",
+   "entity_name": "Madison Park Residence LLC",
+   "community": "The Collection at Madison Farms",
+   "electric_provider": "Athens Utilities",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "N/A",
+   "water_provider": "Limestone County Water and Sewer Authority",
+   "sewer_provider": "Madison Utilities",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "Madison County Garbage",
+   "resident_responsible": "ALL Utilities",
+   "owner_responsible": "",
+   "notes": ""
+  },
+  {
+   "portfolio": "McKinley Homes",
+   "entity_name": "American Legion Investment, LLC",
+   "community": "The Collection at Pine Log",
+   "electric_provider": "Georgia Power",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "N/A",
+   "water_provider": "Rockdale County Water",
+   "sewer_provider": "Rockdale County Water",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "B&B Sanitation Services (Resident Bill Back)",
+   "resident_responsible": "E/W/S",
+   "owner_responsible": "T (billed thru resihome)",
+   "notes": ""
+  },
+  {
+   "portfolio": "McKinley Homes",
+   "entity_name": "Clark Farm Residence, LLC",
+   "community": "The Collection at Clark Farms",
+   "electric_provider": "Jackson EMC",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "N/A",
+   "water_provider": "City of Gainesville Water",
+   "sewer_provider": "City of Gainesville Water",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "Republic Service (Resident Bill Back)",
+   "resident_responsible": "E/W/S",
+   "owner_responsible": "T (billed thru resihome)",
+   "notes": ""
+  },
+  {
+   "portfolio": "McKinley Homes",
+   "entity_name": "Kinsley Park LLC",
+   "community": "The Collection at Kinsley",
+   "electric_provider": "Duke Energy",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "Ebridge Gas",
+   "water_provider": "City of Raleigh Water",
+   "sewer_provider": "City of Raleigh Water",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "City of Raleigh Water",
+   "resident_responsible": "ALL Utilities",
+   "owner_responsible": "",
+   "notes": ""
+  },
+  {
+   "portfolio": "Rocklyn Homes",
+   "entity_name": "RH Hamilton Road LLC",
+   "community": "Hamilton",
+   "electric_provider": "City of LaGrange",
+   "electric_landlord": "Yes, all utilities in Lagrange",
+   "electric_login": "Website: City of LaGrange\nLogin: ctatum@rocklynhomes.com\n🔒 password vaulted",
+   "gas_provider": "N/A",
+   "water_provider": "City of LaGrange",
+   "sewer_provider": "City of LaGrange",
+   "water_landlord": "Yes",
+   "water_login": "Website: City of LaGrange\nLogin: ctatum@rocklynhomes.com\n🔒 password vaulted",
+   "trash_provider": "Billed thru Resihome (City of LaGrange)",
+   "resident_responsible": "ALL (BUNDLED - NOT TRASH)",
+   "owner_responsible": "N/A",
+   "notes": "Turned over to Conservice for Bill date 12/17/2025 Billed thru City $24 a month"
+  },
+  {
+   "portfolio": "Rocklyn Homes",
+   "entity_name": "RH North Pointe LLC",
+   "community": "North Pointe",
+   "electric_provider": "Georgia Power",
+   "electric_landlord": "Yes",
+   "electric_login": "Website:  GA Power\nUsername: ResihomeUtilities\n🔒 password vaulted",
+   "gas_provider": "N/A",
+   "water_provider": "City of Calhoun",
+   "sewer_provider": "City of Calhoun",
+   "water_landlord": "No",
+   "water_login": "Website:   City of Calhoun Login:ctatum@rocklynhomes.com\n🔒 password vaulted",
+   "trash_provider": "City of Resaca",
+   "resident_responsible": "ALL",
+   "owner_responsible": "No trash monthly just $50 set up , all set up",
+   "notes": "GA Power- Completely turned over to Conservice \nCity of Calhoun- Need to verify payment status in January, Rocklyn was handling last bill"
+  },
+  {
+   "portfolio": "Rocklyn Homes",
+   "entity_name": "RR PARKWAY POINTE LLC",
+   "community": "Parkway Pointe Crossing",
+   "electric_provider": "Jackson EMC",
+   "electric_landlord": "",
+   "electric_login": "\"Website- Jackson EMC\nLogin: ctatum@rocklynhomes.com\n🔒 password vaulted",
+   "gas_provider": "City of Winder",
+   "water_provider": "City of Winder",
+   "sewer_provider": "City of Winder",
+   "water_landlord": "Yes",
+   "water_login": "\"Website- City of Winder\nLogin: ctatum@rocklynhomes.com\n🔒 password vaulted",
+   "trash_provider": "City of Winder",
+   "resident_responsible": "ALL",
+   "owner_responsible": "",
+   "notes": "The name for imports shoudl be RR PARKWAY POINTE LLC"
+  },
+  {
+   "portfolio": "Rocklyn Homes",
+   "entity_name": "RH Southport Parkway LLC",
+   "community": "Southport",
+   "electric_provider": "Georgia Power",
+   "electric_landlord": "Yes",
+   "electric_login": "Website:  GA Power\nUsername: ResihomeUtilities\n🔒 password vaulted",
+   "gas_provider": "N/A",
+   "water_provider": "Brunswick-Glynn County JWSC",
+   "sewer_provider": "Brunswick-Glynn County JWSC",
+   "water_landlord": "",
+   "water_login": "Website- Brunswick-Glynn County-JWSC \nLogin: ctatum@rocklynhomes.com\n🔒 password vaulted",
+   "trash_provider": "Glynn County (on taxes) - Republic is hauler- $125 a year, 10.42 a month",
+   "resident_responsible": "E/W/S",
+   "owner_responsible": "Trash",
+   "notes": "GA Power- Completely turned over to Conservice for bills starting after 11/12/2025\nBrunswick- completely over to Conservice as of bill date 12/8/2025 For Bin- Residents can call this number for their bin - 912-544-7111\nMissed Pickup-the residents should call Republic - 912-267-6400"
+  },
+  {
+   "portfolio": "Rocklyn Homes",
+   "entity_name": "RH Lehigh Acres LLC",
+   "community": "Buckingham Village",
+   "electric_provider": "",
+   "electric_landlord": "",
+   "electric_login": "",
+   "gas_provider": "",
+   "water_provider": "",
+   "sewer_provider": "",
+   "water_landlord": "",
+   "water_login": "",
+   "trash_provider": "",
+   "resident_responsible": "",
+   "owner_responsible": "",
+   "notes": ""
+  },
+  {
+   "portfolio": "Rocklyn Homes",
+   "entity_name": "RH Macon LLC",
+   "community": "Highland Pointe",
+   "electric_provider": "Georgia Power",
+   "electric_landlord": "Yes",
+   "electric_login": "Website:  GA Power\nUsername: ResihomeUtilities\n🔒 password vaulted",
+   "gas_provider": "",
+   "water_provider": "Macon Water Authority",
+   "sewer_provider": "Macon Water Authority",
+   "water_landlord": "Yes",
+   "water_login": "https://customers.maconwater.org/css/public/login/form\n\nLogin:       \npquirino@rocklynhomes.com\n🔒 password vaulted",
+   "trash_provider": "Ryland Environmental",
+   "resident_responsible": "ALL",
+   "owner_responsible": "",
+   "notes": ""
+  }
+ ],
+ "fees": [
+  {
+   "service": "SMARTLOCK FEE",
+   "cost": "10.0"
+  },
+  {
+   "service": "LANDSCAPING",
+   "cost": "35.0"
+  },
+  {
+   "service": "WASHER/DRYER",
+   "cost": "25.0"
+  },
+  {
+   "service": "CONSERVICE FEE",
+   "cost": "10.99"
+  }
+ ],
+ "leak": [
+  {
+   "state": "GA",
+   "provider": "Rockdale Water Resources",
+   "utility_type": "WATER",
+   "process": "",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": "Provider does not offer adjustments for Water that has entered the Sewer system such as Toilet Leaks"
+  },
+  {
+   "state": "GA",
+   "provider": "Cherokee County Water and Sewer Authority",
+   "utility_type": "WATER",
+   "process": "",
+   "frequency": "1 every 3 years",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "IN",
+   "provider": "Citizens Energy Group",
+   "utility_type": "WATER",
+   "process": "",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": "If the leak is plumbed into a drain such as a toilet or a water heater that is plumbed into the drain so that you would not be able to see the leak on the floor.\" and will not qualify for an adjustment."
+  },
+  {
+   "state": "IN",
+   "provider": "Indiana American Water",
+   "utility_type": "WATER",
+   "process": "",
+   "frequency": "One leak adjustment per acct lifetime",
+   "balances_stay": "",
+   "notes": "The provider allows only one leak adjustment for the entire time you own the account"
+  },
+  {
+   "state": "OK",
+   "provider": "City of OK Utilities",
+   "utility_type": "WATER",
+   "process": "",
+   "frequency": "1 every 15 months",
+   "balances_stay": "",
+   "notes": "Provider does not offer adjustments for Water that has entered the Sewer system"
+  },
+  {
+   "state": "TN",
+   "provider": "City of Trussvile",
+   "utility_type": "TRASH",
+   "process": "",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": "3.13.2025 Trash service Free- They will start charging soon"
+  },
+  {
+   "state": "TN",
+   "provider": "City of Lebanon",
+   "utility_type": "TRASH",
+   "process": "",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": "Trash service is Free"
+  },
+  {
+   "state": "GA",
+   "provider": "Clayton County Water",
+   "utility_type": "WATER",
+   "process": "Credit request must be submitted within 90 days of the work order invoice. On day 91, it will be denied - (10/16/25) Per Natalie with Clayton County Water (770-960-5200), we are safe from disconnect as long as the adjustment is processing.  We merely need to pay a similar amount to the normal bill to keep the eventual real bill lower.",
+   "frequency": "2 partial credits per 12 months per account",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "GA",
+   "provider": "City of Stockbridge",
+   "utility_type": "WATER",
+   "process": "10/01 - Victoria -(770) 389-7901 \nAdjustments are allowed within 3 months. \nPlumber invoice must be provided and can be mailed to Vaberhart@stockbridgega.org\nTheir adjustments are for SEWER only. Water that flows through the system cannot be adjusted.\nAdjustments are allowed 1/calendar year/account",
+   "frequency": "1 per calendar year (per account)",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "FL",
+   "provider": "City of Deltona",
+   "utility_type": "WATER",
+   "process": "10/01 - Brianna - (386) 575-6800  - https://www.deltonafl.gov/formcenter/deltona-water-wastewater-utility-8/courtesy-leak-adjustment-application-49\nEligibility Requirements\nThe leak must be detected and repaired timely.\nThe affected account must be open/active and have a minimum of 6 months consumption history. If this requirement has not been met at the time of occurrence, the adjustment request will be placed on hold and scheduled to be reviewed once the requirements have been met.\nThe following form must be completed and submitted within 30 days of the first affected bill date.\nThis request is valid for use for up to two consecutive, affected bills.",
+   "frequency": "1 Courtesy Leak Adjustment - 1/12 months\n1 General Courtesy Adjustment - 1/ 24 months",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "TX",
+   "provider": "City of Dallas",
+   "utility_type": "WATER",
+   "process": "Caleb -  (214) 651-1441\nAdjustment/Credit request must be submitted within 3 months of the first bill\n1 adjustment per 12 months allowed\nInvestigation takes 45-90 days to determine if usage as decreased\"",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": "Conservice received an email indicating \"Requests generally take up to 90 days to complete. We suggest that customers continue to make regular monthly payments of approximately what their water bill is during this review period. In the event of an adjustment, an adjustment letter and an updated invoice is mailed out. In the event of a denial or non-qualifying request, a denial letter with explanation is mailed out.\""
+  },
+  {
+   "state": "GA",
+   "provider": "City of Union City",
+   "utility_type": "WATER",
+   "process": "Adjustments are submitted to their 3rd party insurance entity, Hanover Citizen's Insurance, at 800-628-0250",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "TX",
+   "provider": "10/9 - Reggie - \nhoustonwater.org >>>>>> Other Services >>>> Download Forms >>>> UNIVERSAL ADJUSTMENT REQUEST FORM (Download the form)\nhttps://www.houstonwaterbills.houstontx.gov/ProdDP/Default/Default \n\n\nhttps://houstonsecured.org/docs/Universal%20Adjustment%20Form%20UB.pdf  \n\nRetrieve proof of  repair \n3 consecutive months to determine if there was an actual leak\nComplete CITY OF HOUSTON ADJUSTMENT REQUEST FORM\nSubmit with proof of repair - customer.service@houstontx.gov\nThe city will look at the average use of the previous consecutive bills \n60-90 days to review \nUsage must decrease after the repair\nAlways submit a request (doesn't matter what the cause of the leak was). The team will review and determine if an adjustment can be issued\nFollow up BY PHONE the next day, after the email has been sent - 713-371-1400 \nRequest the amount that can be paid. Ask the representative to submit this request to place an INVESTIGATIVE HOLD on the high bill. The representative should provide the date that the hold is good through (note the date on the ticket)\nCall back every 30 days before the expiration date that is provided and extend the date until the decision is made.  \nOnce a normal bill comes in, begin paying the normal bill.\nDo NOT pay the high bill amount unless the adjustment request has been denied.",
+   "utility_type": "WATER",
+   "process": "10/9 - Reggie - \nhoustonwater.org >>>>>> Other Services >>>> Download Forms >>>> UNIVERSAL ADJUSTMENT REQUEST FORM (Download the form)\nhttps://www.houstonwaterbills.houstontx.gov/ProdDP/Default/Default \n\n\nhttps://houstonsecured.org/docs/Universal%20Adjustment%20Form%20UB.pdf  \n\nRetrieve proof of  repair \n3 consecutive months to determine if there was an actual leak\nComplete CITY OF HOUSTON ADJUSTMENT REQUEST FORM\nSubmit with proof of repair - customer.service@houstontx.gov\nThe city will look at the average use of the previous consecutive bills \n60-90 days to review \nUsage must decrease after the repair\nAlways submit a request (doesn't matter what the cause of the leak was). The team will review and determine if an adjustment can be issued\nFollow up BY PHONE the next day, after the email has been sent - 713-371-1400 \nRequest the amount that can be paid. Ask the representative to submit this request to place an INVESTIGATIVE HOLD on the high bill. The representative should provide the date that the hold is good through (note the date on the ticket)\nCall back every 30 days before the expiration date that is provided and extend the date until the decision is made.  \nOnce a normal bill comes in, begin paying the normal bill.\nDo NOT pay the high bill amount unless the adjustment request has been denied.",
+   "frequency": "3 adjusts",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "TX",
+   "provider": "City of Arlington",
+   "utility_type": "WATER",
+   "process": "https://webapps.arlingtontx.gov/Water/LeakAdjustment/",
+   "frequency": "No previous adjustment within the past 2 years\nRequests to be received by their office no later than 90 days after the repair date",
+   "balances_stay": "",
+   "notes": "The Leak Adjustment form can be used to see if your water account qualifies for an adjustment, and then submit the application to the Water Utilities department for completion. To be eligible for a leak adjustment, your water account must meet the following criteria:- Your account must be a Residential account.- The water usage for the requested time period must be at least twice the average usage of the same time periods over the past three years. If three years of data are not available, the water usage must be at least twice the City Of Arlington average.- No previous adjustment within the past 2 years.- The requested adjustment can only be for usage during the past 90 days, and only be for two consecutive months."
+  },
+  {
+   "state": "GA",
+   "provider": "Etowah Water",
+   "utility_type": "WATER",
+   "process": "For leak adjustments, the bills will NOT reflect the adjustment amount. We will need to request the print out of the account. Their invoicing system is not set up to allow for account adjustments. Please request the document BEFORE submitting the credit request on the Smartsheet. Call Patti and she will email the account history to utilities@resicap.com",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "AL",
+   "provider": "CAW - Birmingham Waterworks",
+   "utility_type": "WATER",
+   "process": "https://caw-al.gov/resources/forms-applications/\nhttps://form.jotform.com/250844813616055\n\nLeak adjustment request must be accompanied with the repair bill\n8-12 weeks to review\nWe must advise the service provider that we are requesting a hold and pay current balances during the adjustment review\nDocuments attached",
+   "frequency": "2.0",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "FL",
+   "provider": "Pasco County Utilities",
+   "utility_type": "WATER",
+   "process": "I just spoke with Frances from Pasco County Utilities and she said they want to see the bill go back down for 1-2 billing cycles. She said processing is 8- 12 weeks to complete. \n\nTo process leak adjustment, Please go to this link https://pasco.rja.revize.com/forms/11150",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "AL",
+   "provider": "City of Calera",
+   "utility_type": "WATER",
+   "process": "I spoke with Whitney -",
+   "frequency": "Per Water Board Policy, only one leak adjustment is allowed every three years on the account. Once a leak adjustment has been used, you will not qualify for another one for three years.\nLeak adjustments can take 45 days or more to be processed. Adjustments cannot be processed until consumption has returned to normal.",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "GA",
+   "provider": "Gwinnet County",
+   "utility_type": "WATER",
+   "process": "03/30/26 - Spoke with Tina - Billing cannot be paused while investigating the issue.\n\nfile:///C:/Users/bfreeman/Downloads/leak-adjustment-request-current.pdf",
+   "frequency": "Once in a 12 month time frame",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "FL",
+   "provider": "City of Northport",
+   "utility_type": "WATER",
+   "process": "Has not been granted an adjustment in the last 2 years. \nAccount must have a minimum of six (6) months of billing history before an account will be reviewed for an adjustment.  \nWater usage exceeds two (2) tiers above the customer’s average tier consumption. \nRequest is only for current incidents (within the last two months). \nLimited to a maximum of two (2) consecutive billing periods.",
+   "frequency": "Every 2 years",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "OK",
+   "provider": "City of Oklahoma City",
+   "utility_type": "WATER",
+   "process": "Per the Provider of Oklahoma City, the only qualifying adjustments are slab leaks, hidden pipe leaks, underground pipe leaks, and irrigation leaks.",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": ""
+  },
+  {
+   "state": "FL",
+   "provider": "Hernando County Utilities Dept",
+   "utility_type": "WATER",
+   "process": "The provider does not offer adjustments for water that has entered the sewer system, such as toilet leaks.",
+   "frequency": "",
+   "balances_stay": "",
+   "notes": ""
+  }
+ ],
+ "provider_info": [
+  {
+   "city": "Statesville",
+   "state": "NC",
+   "service_provider": "City of Statesville",
+   "date_received": "2025-05-07",
+   "info_from": "Jobelle",
+   "utility": "WATER",
+   "what_we_should_know": "STORMWATER AGREEMENT - If the stormwater is not listed at the top of the lease or a stormwater form sent in the stormwater stays in the owners name."
+  },
+  {
+   "city": "HENDERSONVILLE",
+   "state": "TN",
+   "service_provider": "City of HENDERSONVILLE",
+   "date_received": "2025-05-13",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "I spoke Amy from the tax Office ( 615-822-1000 ) trash is billed thru property taxes but there is no specific/separate line amount for trash."
+  },
+  {
+   "city": "STOCKBRIDGE",
+   "state": "GA",
+   "service_provider": "City of STOCKBRIDGE",
+   "date_received": "2025-05-14",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "I spoke with Decius (Phone: 678-373-6765) for the address 30 ALLISON COURT, STOCKBRIDGE, GA - 30281. Trash is billed thru property taxes and the trash provider is GFL."
+  },
+  {
+   "city": "Covington",
+   "state": "GA",
+   "service_provider": "City of Covington",
+   "date_received": "2025-05-15",
+   "info_from": "Jobelle",
+   "utility": "WATER",
+   "what_we_should_know": "Stormwater - 9190 SW SPILLERS DR, COVINGTON, GA - 30014 - The storm water bill stays in the owner’s name.  It is the owner’s responsibility.   The owner shows as Resicap Georgia owner from the tax assessor’s office."
+  },
+  {
+   "city": "Gwinnett County",
+   "state": "GA",
+   "service_provider": "Gwinnett County Solid Waste",
+   "date_received": "2025-05-28",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "FOR ALL TRASH PROPERTY TAXES:\n\nI spoke with Myra at 770.822.7141 from Gwinnett County Solid Waste and said the resident needs to call them to set up trash so residents can be notified for any service updates, bulk items pick up, service delays, etc.\nResidents need to call so that Gwinnett County Solid Waste has an updated record on their end as well.\nFor rental property requirements, the resident needs to confirm who owns the property and the container they need."
+  },
+  {
+   "city": "Adairsville",
+   "state": "GA",
+   "service_provider": "City of Adairsville",
+   "date_received": "2025-06-04",
+   "info_from": "Beverly",
+   "utility": "TRASH",
+   "what_we_should_know": "Spoke with JENNIFER WILLIS - The residents can call them directly for additional trash bins. 2 bins are currently $22.58 (1 bin - $15.58)"
+  },
+  {
+   "city": "",
+   "state": "",
+   "service_provider": "GFL",
+   "date_received": "2025-06-25",
+   "info_from": "Beverly",
+   "utility": "TRASH",
+   "what_we_should_know": "GFL bills 3 months in advance (Example - June invoices - service periods August thru October)"
+  },
+  {
+   "city": "Leesburg",
+   "state": "FL",
+   "service_provider": "City of Leesburg FL",
+   "date_received": "2025-07-09",
+   "info_from": "Jobelle",
+   "utility": "ELECTRIC",
+   "what_we_should_know": "Customer at this location would have to terminate services or be cut for non-payment - Reference - 1609 Hoofprint Ct, Fruitland Park, FL 34731"
+  },
+  {
+   "city": "Madison",
+   "state": "TN",
+   "service_provider": "hubNashville! Trash on Taxes",
+   "date_received": "2025-08-01",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "Trash is billed thru property taxes. I spoke with Roger regarding the trash. Please be advised that the resident can take 3 Kitchen trash bags to Metro Convenience for Free per day in the meantime til they receive their bin. (Best example are the THE ORCHARDS (TN) properties)\n\nLocation is 939A Anderson Ln Madison, TN open from 8:30 - 4:30pm"
+  },
+  {
+   "city": "Madison",
+   "state": "TN",
+   "service_provider": "Madison Suburban Utility District",
+   "date_received": "2025-08-08",
+   "info_from": "Beverly",
+   "utility": "WATER",
+   "what_we_should_know": "615-868-3201 - For NEW CONSTRUCTION - Accounts will be established for water only and the information will be sent to Metro Water Services for sewer service. Sewer accounts cannot be established directly with Metro, as the meter number and account number must be transferred to them."
+  },
+  {
+   "city": "Madison",
+   "state": "TN",
+   "service_provider": "Metro Water Services",
+   "date_received": "2025-08-08",
+   "info_from": "Beverly",
+   "utility": "SEWER",
+   "what_we_should_know": "For NEW CONSTRUCTION - See above -  Metro Water Services    : 615-862-4600 - Sherylyn"
+  },
+  {
+   "city": "Temple",
+   "state": "GA",
+   "service_provider": "City of Temple",
+   "date_received": "2025-08-11",
+   "info_from": "Beverly",
+   "utility": "WATER",
+   "what_we_should_know": "(770) 562-3369 - Left voicemail - Calling to confirm their billing cycle information - Example - 710 ALI ST - Bill received (05/20/2025 06/18/2025)  - Bill Due 7/23 - Received on today's funding"
+  },
+  {
+   "city": "County - Miami Dade",
+   "state": "FL",
+   "service_provider": "Miami-Dade Water and Sewer Department",
+   "date_received": "",
+   "info_from": "",
+   "utility": "WATER",
+   "what_we_should_know": "Quarterly billing"
+  },
+  {
+   "city": "ANDERSON",
+   "state": "SC",
+   "service_provider": "Piedmont Natural Gas",
+   "date_received": "2025-08-15",
+   "info_from": "Jobelle",
+   "utility": "GAS",
+   "what_we_should_know": "Example address: (425 COUNTRY CLUB LANE, ANDERSON, SC 29625)\n\nNo fee for manually activating gas under landlord agreement."
+  },
+  {
+   "city": "ANDERSON",
+   "state": "SC",
+   "service_provider": "City of Anderson",
+   "date_received": "2025-08-15",
+   "info_from": "Jobelle",
+   "utility": "WATER",
+   "what_we_should_know": "Example address: (425 COUNTRY CLUB LANE, ANDERSON, SC 29625)\n\nNo fee for manually activating water under landlord agreement."
+  },
+  {
+   "city": "Greenfield",
+   "state": "IN",
+   "service_provider": "City of Greenfield",
+   "date_received": "2025-08-27",
+   "info_from": "Jobelle",
+   "utility": "WATER",
+   "what_we_should_know": "18 W MICHIGAN ST, GREENFIELD, IN - 46140 - The stormwater bills stay in the owner's/landlord's name, per the Greenfield Code of Ordinances, section 54.06. You can charge the renter/tenant for the monthly charge, but we must bill the owner."
+  },
+  {
+   "city": "New Hope AL",
+   "state": "AL",
+   "service_provider": "Huntsville is the billing agent but Madison County Sanitation Department is the provider",
+   "date_received": "2025-09-10",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "ROI Property Group, LLC\nLocation- New Hope AL\n\nResidents need to set up trash service through the website. I have attached the link below, under DEPARTMENTS choose Waste Control and Recycling that will take you to your main page. Then under SERVICE REQUEST it will be a New Residential Customer Request fill form out and submit it back when done. Thank you!\nhttps://www.madisoncountyal.gov/"
+  },
+  {
+   "city": "Merritt Island",
+   "state": "FL",
+   "service_provider": "FPL",
+   "date_received": "2025-09-12",
+   "info_from": "Beverly",
+   "utility": "ELECTRIC",
+   "what_we_should_know": "Zineb Elkadir - 321-726-4808 - Service Planning Project Manager -  zineb.elkadir@fpl.com\nEvery area has their independent manager - This department handles COs and Inspections for New Construction \nFor access to a specific manager, call Customer Service, request a supervisor and request the confact information for the SPPM for the area that you need."
+  },
+  {
+   "city": "Dallas",
+   "state": "TX",
+   "service_provider": "City of Dallas",
+   "date_received": "2025-09-23",
+   "info_from": "Caleb -  (214) 651-1441",
+   "utility": "",
+   "what_we_should_know": "Adjustment/Credit request must be submitted within 3 months of the first bill\n1 adjustment per 12 months allowed\nInvestigation takes 45-90 days to determine if usage as decreased"
+  },
+  {
+   "city": "City of Hendersonville",
+   "state": "TN",
+   "service_provider": "Public Works",
+   "date_received": "2025-12-10",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "I spoke with Kelly at 615.822.1016 from Public works and she confirmed that trash is billed thru property taxes and it is $299 annually"
+  },
+  {
+   "city": "City of Simpsonville SC",
+   "state": "SC",
+   "service_provider": "City of Simpsonville Public Works,",
+   "date_received": "2025-12-29",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "I spoke with Holly from the City of Simpsonville at 864-967-9526. The trash is billed thru property taxes and the trash bill is depending on the property value. There is no breakdown for the trash fee."
+  },
+  {
+   "city": "Greenville County",
+   "state": "SC",
+   "service_provider": "Greater Greenville Sanitation",
+   "date_received": "2026-01-20",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "Trash is billed thru property taxes. There should be a base of $210.00 and then a 4% millage based on the value of the home. In 2024 the 4% was 237.49. I am not able to see what 2025 had listed per Stacy at Information <info@ggsc.gov>"
+  },
+  {
+   "city": "Snelville GA",
+   "state": "GA",
+   "service_provider": "City of Snelville Public works",
+   "date_received": "2026-02-19",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "I spoke with Rebecca from Public works at 770-985-3527 and All the properties in City of Snelville GA for Residential, trash is billed thru property taxes and $240/annually -JL"
+  },
+  {
+   "city": "Oklahoma City OK",
+   "state": "OK",
+   "service_provider": "City of Oklahoma City OK",
+   "date_received": "2026-06-30",
+   "info_from": "Jobelle",
+   "utility": "TRASH",
+   "what_we_should_know": "I spoke with Aleisha from City of Oklahoma City OK and it is a standard for residential homes to receive two trash bins. If we choose to remove one, monthly cost will still be the same"
+  },
+  {
+   "city": "Phoenix",
+   "state": "AZ",
+   "service_provider": "SRP",
+   "date_received": "2026-06-30",
+   "info_from": "Beverly",
+   "utility": "WATER",
+   "what_we_should_know": "For RESICAP ARIZONA OWNER III LLC We have issued reference number 943009894 identifying you as an authorized agent to conduct business on behalf of the customer."
+  },
+  {
+   "city": "Katy",
+   "state": "TX",
+   "service_provider": "Centerpoint Energy",
+   "date_received": "2026-07-23",
+   "info_from": "Jobelle",
+   "utility": "GAS",
+   "what_we_should_know": "Example address (20942 Patriot Park Ln, Katy, TX - 77449)\n\nI spoke with Claudia from Centerpoint Energy, and she said they are able to use a smart/electronic access code.\n\nFor reference, the account number is 6404409581-4.\nBut when speaking with the other representative, even if we provide access code an adult must be present"
+  }
+ ],
+ "client_info": [
+  {
+   "client": "Appreciation Homes",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident",
+   "notes": ""
+  },
+  {
+   "client": "DRC",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident E/G, Conservice W/S/T",
+   "notes": "unless bundled"
+  },
+  {
+   "client": "Hudson Oak",
+   "vacant_utilities": "RH In house",
+   "occupied_utilities": "Resident",
+   "notes": ""
+  },
+  {
+   "client": "ROI",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident (Angela's) - Resident E/W/T, Conservice S (Holly Anne)",
+   "notes": "Holly Anne Sewer through HICO stays in owner name"
+  },
+  {
+   "client": "SFR",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident E/G, Conservice W/S/T",
+   "notes": "unless bundled"
+  },
+  {
+   "client": "Rocklyn - Hamilton",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident - ALL (BUNDLED minus Trash)",
+   "notes": "Trash is left in Owner name as part of Master Agreement"
+  },
+  {
+   "client": "Rocklyn - North Pointe",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident - ALL (Trash One Time Can Purchase)",
+   "notes": "Eff 1/6/2026"
+  },
+  {
+   "client": "Rocklyn - Parkway Pointe",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident - ALL",
+   "notes": "Eff 1/6/2026"
+  },
+  {
+   "client": "Rocklyn - Southport",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident - ALL",
+   "notes": "Eff 1/6/2026"
+  },
+  {
+   "client": "Rocklyn - Highland Pointe",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident - ALL",
+   "notes": ""
+  },
+  {
+   "client": "Newstar",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "Resident - Not Trash",
+   "notes": "DO NOT OPT OUT FOR TRASH- MASTER AGREEEMENT FOR WHOLE COMMUNITY All Resi Leases- Trustee leases mixed bag"
+  },
+  {
+   "client": "RB FL Development",
+   "vacant_utilities": "Conservice",
+   "occupied_utilities": "resident - electric , Conservice water.",
+   "notes": "trash on tax. homes septic"
+  }
+ ],
+ "loa": [
+  {
+   "service_provider": "Dekalb County GA",
+   "what_is_required": "Letter of Authorization",
+   "response_received": "NO",
+   "required_answer": ""
+  },
+  {
+   "service_provider": "APS",
+   "what_is_required": "Letter of Authorization",
+   "response_received": "",
+   "required_answer": ""
+  },
+  {
+   "service_provider": "City of Oklahoma City OK",
+   "what_is_required": "Letter of Authorization",
+   "response_received": "",
+   "required_answer": ""
+  },
+  {
+   "service_provider": "SRP",
+   "what_is_required": "Letter of Authorization",
+   "response_received": "",
+   "required_answer": ""
+  },
+  {
+   "service_provider": "City of East Point",
+   "what_is_required": "Letter of Authorization",
+   "response_received": "",
+   "required_answer": ""
+  },
+  {
+   "service_provider": "TXU Energy 650638",
+   "what_is_required": "Letter of Authorization",
+   "response_received": "",
+   "required_answer": ""
+  },
+  {
+   "service_provider": "Snapping Shoals EMC",
+   "what_is_required": "Security Questions",
+   "response_received": "",
+   "required_answer": "MyDog (for ALL)"
+  }
+ ],
+ "conservice_log": [
+  {
+   "date": "2023-11-30",
+   "topic": "Resident Billing begins 1/1/24 - confirmed",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Resident grace period - 3 days",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "We will request deactivation on day  - REO Manager / Import File",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "No deactivations on Fridays",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Residents should provide their service providers name and contact info, once service is in their name",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "$9.99 - Renewals",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Expected Move Out Date - can be 3 weeks in advance. This will be the date that Conservice would reach out to the service provider and   Winter months 7-10 days  Summer months 3 weeks",
+   "status": ""
+  },
+  {
+   "date": "2024-02-08",
+   "topic": "Question - Conservice Calls\nDate: 02-08-24\nIssue: Service shut off for nonpayment \nProperty: 104 FIREFLY LN\nUtility: EL\nService Provider: Huntsville Utilities\nResolution:  Ashly will look into this  and send it to Deb and Patricia",
+   "status": "What is the process for delayed payments?"
+  },
+  {
+   "date": "",
+   "topic": "Move Outs - Send Ashley a message when we get an error for final bill",
+   "status": ""
+  },
+  {
+   "date": "2024-02-22",
+   "topic": "\"Conservice Calls\nDate: 02/21/24\nIssue: Electric Disconnected\nProperty: 6047 Cessna Dr, Conroe, TX - 77316\nUtility: Electric\nService Provider: \nResolution: \"",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "1340 SHORESBROOK ROAD, SPARTANBURG, SC - 29301",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Conservice Calls\nDate: \nIssue: \nProperty:\nUtility:\nService Provider:\nResolution:",
+   "status": ""
+  },
+  {
+   "date": "2024-03-21",
+   "topic": "Residents transferring EL and NG into their name",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Vacant vs Occupied - The update is still being worked on. There are other clients who have experienced this. Ashly will provide an update by the end of the day.",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Gas South - Conservice was at error with the late fees and they will reimburse Resi for those",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "The Funding team will review the 3/11 files and the week before and an reimbursement should be forthcoming",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "There are concerns with the lapse in billing. All residents will be allowed to place the EL and NG in their names.",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "First eblast 3/20 and the next will go out next week.",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "What is the best way for us to process the requests on Conservice's side to deactivate",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Conservice just needs to know - Resihomebilling@conservice.com",
+   "status": ""
+  },
+  {
+   "date": "2024-04-04",
+   "topic": "458 Voyles",
+   "status": "Gas Bill was due 4/2 and funds have not been requested"
+  },
+  {
+   "date": "",
+   "topic": "Gas South conversation",
+   "status": ""
+  },
+  {
+   "date": "2024-04-25",
+   "topic": "Gas South",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Import - Everything beyond Column U is not used",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Deactivations delays - 30 days is the standard amount of time",
+   "status": ""
+  },
+  {
+   "date": "2024-04-29",
+   "topic": "Call with Zach and Mike Doucette is with Lets Onboard",
+   "status": "James DeStefano - Lets Onboard"
+  },
+  {
+   "date": "",
+   "topic": "Looking for ways to become more innovative",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "3rd party for Conservice",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Account Management team",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Support team",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Need to review our portfolio and determine what the price may be. Takes about 4 weeks to review",
+   "status": ""
+  },
+  {
+   "date": "2024-05-16",
+   "topic": "Week ending 5/24 Friday Funding",
+   "status": ""
+  },
+  {
+   "date": "2024-05-23",
+   "topic": "Multi Family - Emails for resident account questions -",
+   "status": "Alexander Furteg"
+  },
+  {
+   "date": "",
+   "topic": "Katrina will send a message for training",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "2178 LISTON CT, ORLANDO, FL - 32811",
+   "status": "Ashly will address  with the team"
+  },
+  {
+   "date": "",
+   "topic": "Conservice Issues per Ashly",
+   "status": "Time to respond"
+  },
+  {
+   "date": "",
+   "topic": "Urgent",
+   "status": "Response should be received within 1 hour"
+  },
+  {
+   "date": "2024-06-13",
+   "topic": "Time frame for follow ups - Example GA Power 10 days",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Import - Incorrect Providers",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Asking for ownership documents when they have previously been provided",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "CSA questions",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Paulding County - Ashly will check with the team regarding the payment link.",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Ashly will follow up with the team regarding staffing and response times.",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "1600 Chapman - Ashly will research and find out why the bill was sent after the property sold.",
+   "status": "The Balance Forward Team researched the bill and reached out to the provider. This was sent back to the Activations team"
+  },
+  {
+   "date": "2024-06-27",
+   "topic": "Account Review - Ashly will come out to us. \nAnytime Candice is in OK, Ashly will take her out to lunch LOL",
+   "status": ""
+  },
+  {
+   "date": "",
+   "topic": "Paulding County - Ashly will check with the team regarding the payment link.",
+   "status": "If the account is NEW, online is not available. Ashly has the team looking into this. Jobelle confirmed that Conservice has been able to pay with the credit card"
+  },
+  {
+   "date": "",
+   "topic": "4013 Morning Star - Austell Gas - Ashly is looking into this",
+   "status": ""
+  },
+  {
+   "date": "2024-07-11",
+   "topic": "Property/Service Provider Imports",
+   "status": "240628 - Import (Billing) email with Samantha"
+  },
+  {
+   "date": "",
+   "topic": "Emails correspondence - Who gets the emails and how is the information routed",
+   "status": "Example - Sewer Service Activations Required - OSDS Sewer Utility"
+  },
+  {
+   "date": "2024-07-18",
+   "topic": "Sewer Service Activations Required - OSDS Sewer Utility",
+   "status": "110 Meadow"
+  },
+  {
+   "date": "",
+   "topic": "Multi Family Team joined the call - Sadie / Derek / Mary",
+   "status": "Sadie - Similar to Scott's role"
+  },
+  {
+   "date": "",
+   "topic": "",
+   "status": "Derek - Billing"
+  },
+  {
+   "date": "",
+   "topic": "",
+   "status": "Mary - Meters - Equipment issues  - Etc"
+  },
+  {
+   "date": "",
+   "topic": "",
+   "status": "Once we send a bill, there is nothing else required on our end, other than approving funds"
+  },
+  {
+   "date": "",
+   "topic": "",
+   "status": "Derek - Billing should be set up for August next week"
+  },
+  {
+   "date": "",
+   "topic": "Center Point Energy will set up new account numbers for EVERY account - Conservice will get a batch and update all accounts and will advise us, once all of the accounts have been updated",
+   "status": ""
+  },
+  {
+   "date": "2024-08-08",
+   "topic": "Date:  08/08/24\nIssue: Accounts that are in WRI's name\nProperty: 10710 Eastcrest Ln, Dallas, TX\nUtility: Electric\nService Provider: Reliant\nResolution:",
+   "status": "Can we get a list of properties in WRIs name?"
+  },
+  {
+   "date": "2024-08-29",
+   "topic": "8/26  Refund tracker GROVEPARC TOWNHOMES (FL7) OWNER VI LLC\nOAK PARK ESTATES (FL) OWNER III LLC accounts in WRI's name. Why would new property accounts be established in WRI's name?",
+   "status": "Above"
+  },
+  {
+   "date": "2024-09-19",
+   "topic": "Account passwords/pins",
+   "status": ""
+  },
+  {
+   "date": "2024-09-20",
+   "topic": "Date: 09/13/24 - 09/20/24\nIssue: Request for activation\nProperty: 3517 BELFAST DR, GASTONIA, NC - 28052 \nUtility: EL/ W/SE /\nService Provider: City of Gastonia\nResolution: Resihome paid with CC",
+   "status": ""
+  },
+  {
+   "date": "2025-08-26",
+   "topic": "Inadvertent Opt-In - Email from Ashly",
+   "status": "Inadvertent Opt-In has to do with Conservice contacting the provider and being told that the home is All Electric, HOA, Billed on Property Taxes, etc. \n\nWhen Conservice is advised that the utility will not have a normal monthly/bimonthly invoice, and meets the requirements for an Opt-Out on Conservice's side,Conservice will reach out to Resihome for approval before opting out"
+  }
+ ],
+ "weekly": [
+  {
+   "section": "",
+   "monday": "Aims Onboarding/Utility Import Processing",
+   "tuesday": "Aims Onboarding/Utility Import Processing",
+   "wednesday": "Aims Onboarding/Utility Import Processing",
+   "thursday": "Aims Onboarding/Utility Import Processing",
+   "friday": "Aims Onboarding/Utility Import Processing"
+  },
+  {
+   "section": "",
+   "monday": "Conservice Exceptions Processing",
+   "tuesday": "Conservice Exceptions Processing",
+   "wednesday": "Conservice Exceptions Processing",
+   "thursday": "Conservice Exceptions Processing",
+   "friday": "Conservice Exceptions Processing ( Sent to PM's)"
+  },
+  {
+   "section": "",
+   "monday": "Adjustment/Credit Request Processing",
+   "tuesday": "Adjustment/Credit Request Processing",
+   "wednesday": "Adjustment/Credit Request Processing",
+   "thursday": "Adjustment/Credit Request Processing",
+   "friday": "Adjustment/Credit Request Processing"
+  },
+  {
+   "section": "",
+   "monday": "Conservice Funding Request",
+   "tuesday": "",
+   "wednesday": "Conservice Funding Request",
+   "thursday": "",
+   "friday": ""
+  },
+  {
+   "section": "AM",
+   "monday": "Conservice Tenant Portal Weekly Audit - ResiHome Current Resident Data",
+   "tuesday": "",
+   "wednesday": "",
+   "thursday": "",
+   "friday": ""
+  },
+  {
+   "section": "",
+   "monday": "Final Bill Report Processing (Comes Mon or Tues",
+   "tuesday": "",
+   "wednesday": "",
+   "thursday": "",
+   "friday": ""
+  },
+  {
+   "section": "",
+   "monday": "Multi Family Funding Request",
+   "tuesday": "",
+   "wednesday": "Multi Family Funding Request",
+   "thursday": "Multi Family Funding Request",
+   "friday": ""
+  },
+  {
+   "section": "",
+   "monday": "Tenant Move Outs",
+   "tuesday": "Tenant Move Outs",
+   "wednesday": "Tenant Move Outs",
+   "thursday": "Tenant Move Outs",
+   "friday": "Tenant Move Outs"
+  },
+  {
+   "section": "",
+   "monday": "REO   Projects by Action Required",
+   "tuesday": "REO   Projects by Action Required",
+   "wednesday": "REO   Projects by Action Required",
+   "thursday": "REO   Projects by Action Required",
+   "friday": "REO   Projects by Action Required"
+  },
+  {
+   "section": "",
+   "monday": "Hubspot Deactivation Tickets",
+   "tuesday": "Hubspot Deactivation Tickets",
+   "wednesday": "Hubspot Deactivation Tickets",
+   "thursday": "Hubspot Deactivation Tickets",
+   "friday": "Hubspot Deactivation Ticket Updates Only"
+  },
+  {
+   "section": "",
+   "monday": "Tenant Move Ins",
+   "tuesday": "Tenant Move Ins",
+   "wednesday": "Tenant Move Ins",
+   "thursday": "Tenant Move Ins",
+   "friday": "Tenant Move Ins"
+  },
+  {
+   "section": "",
+   "monday": "REO   Projects by Action Required",
+   "tuesday": "REO   Projects by Action Required",
+   "wednesday": "REO   Projects by Action Required",
+   "thursday": "REO   Projects by Action Required",
+   "friday": "REO   Projects by Action Required"
+  },
+  {
+   "section": "",
+   "monday": "Jacob",
+   "tuesday": "",
+   "wednesday": "",
+   "thursday": "",
+   "friday": ""
+  },
+  {
+   "section": "",
+   "monday": "Jobelle",
+   "tuesday": "",
+   "wednesday": "",
+   "thursday": "",
+   "friday": ""
+  },
+  {
+   "section": "",
+   "monday": "Beverly",
+   "tuesday": "",
+   "wednesday": "",
+   "thursday": "",
+   "friday": ""
+  }
+ ],
+ "coding": [
+  {
+   "utility_type": "ELECTRIC"
+  },
+  {
+   "utility_type": "GAS"
+  },
+  {
+   "utility_type": "SEWER"
+  },
+  {
+   "utility_type": "TRASH"
+  },
+  {
+   "utility_type": "WATER"
+  }
+ ],
+ "templates": [
+  {
+   "name": "Conservice Calls",
+   "body": "Conservice Calls\nDate: \nIssue: \nProperty:\nUtility:\nService Provider:\nResolution:"
+  },
+  {
+   "name": "RESCHEDULED MISSED APPOINTMENT",
+   "body": "RESCHEDULED MISSED APPOINTMENT\nREO ID: \nAddress: \nUtility: \nEntity: \nService Provider: \nProvider Phone #: \nAppointment Date: \nAppointment Time: \nAccount Number: \nPresence Required?:\nAdditional Action Required?: \nAdditional Notes:"
+  },
+  {
+   "name": "TIPS",
+   "body": "TIPS"
+  },
+  {
+   "name": "When Residents Have Not Transferred Accounts",
+   "body": "When Residents Have Not Transferred Accounts\n\nResidents have ample time to Transfer utilities before/after move in . when you get emails from Conservice advising accts haven't been closed because tenant hasn't started an acct, you certainly can notify the PM so they are aware but your response to Conservice should be proceed with deactivation.\nOnly time we should have back and forth is when utilities can't be shut off UNTIL a new acct is started.\nIf you remember that and follow that there will be less back and forth"
+  }
+ ],
+ "resident_notes": [
+  {
+   "note": "Resident don't get billed until the bill in question is paid. \nConservice has a cut off date of billing which is 25th of each month\nBills not paid before then will not be charged to the resident until the next month"
+  }
+ ],
+ "resources": [
+  {
+   "whats_needed": "Conservice's Information",
+   "link": "https://docs.google.com/spreadsheets/d/1GkGaba16nz6Xa-mOOvP-GSeVj5p60ZUZHZCpZvXKrRo/edit?gid=0#gid=0\n\n\nConservice, LLC. \nConservice\n844-858-9883\nMailing address: PO Box 4698 Logan, UT 84323\nEmail: resihome@conservice.com",
+   "whats_included": "Conservice's Contact information\nCall Agendas"
+  },
+  {
+   "whats_needed": "Hudson Oaks",
+   "link": "https://drive.google.com/drive/folders/0AIYA4LdbOSL_Uk9PVA",
+   "whats_included": "Clairbrooke\nRoll Tigers - Copperleaf"
+  },
+  {
+   "whats_needed": "Hudson Oaks",
+   "link": "https://docs.google.com/spreadsheets/d/1YtrONL9l7z6RHQQBZnR9x6H4MSQPpwZd/edit?gid=394754129#gid=394754129",
+   "whats_included": "Onboarding Sheet for:\nClairbrooke\nRoll Tigers - Copperleaf"
+  },
+  {
+   "whats_needed": "Resicap Owner",
+   "link": "https://drive.google.com/drive/folders/0ANWppDvh1hzkUk9PVA",
+   "whats_included": "Resicap Owner \nAlabama/ Arizona / Florida / Georgia / Indiana / North Carolina / South Carolina / Tennessee / Texas"
+  },
+  {
+   "whats_needed": "Property Uploads",
+   "link": "https://drive.google.com/drive/folders/0AC6FoeXidrCEUk9PVA",
+   "whats_included": "Properties are Uploaded to ResiAIMs - Reports are compiled in this folder"
+  },
+  {
+   "whats_needed": "Utilities \"Working\" Folder",
+   "link": "https://drive.google.com/drive/folders/0APiNNFhmgmrxUk9PVA",
+   "whats_included": "Activations/Property Imports /"
+  },
+  {
+   "whats_needed": "Utilities Basics",
+   "link": "https://drive.google.com/drive/folders/0APiNNFhmgmrxUk9PVA",
+   "whats_included": "Utilities 101 Updated Document \nBasic Information\nMeter Illustrations"
+  },
+  {
+   "whats_needed": "Conservice Emails",
+   "link": "resihomegqc@conservice.com and  activationsacs@conservice.com",
+   "whats_included": "To Activate or Deactivate Service\nService was ON at some point and needs to be reactivated"
+  },
+  {
+   "whats_needed": "",
+   "link": "resihomebilling@conservice.com",
+   "whats_included": "This is for Resident related billing only"
+  },
+  {
+   "whats_needed": "",
+   "link": "sfdisconnects@conservice.com",
+   "whats_included": "Service that was previously on has been disconnected"
+  },
+  {
+   "whats_needed": "",
+   "link": "sfimports@conservice.com",
+   "whats_included": "New properties that have been onboarded"
+  },
+  {
+   "whats_needed": "",
+   "link": "sftransitions@conservice.com",
+   "whats_included": "Bills received that should be processed"
+  },
+  {
+   "whats_needed": "",
+   "link": "SFleakadjustments@conservice.com",
+   "whats_included": "Leak adjustment requests"
+  },
+  {
+   "whats_needed": "Conservice's Contact Info",
+   "link": "Conservice, LLC. \nConservice\n844-858-9883\nMailing address: PO Box 4698 Logan, UT 84323\nEmail: resihome@conservice.com",
+   "whats_included": ""
+  },
+  {
+   "whats_needed": "Jonesboro Crossing - Georgia Power Account #s",
+   "link": "https://drive.google.com/drive/folders/1LqDvNKfwa2FJzh4voeDgghoplqWOWTNb",
+   "whats_included": "Account numbers for Jonesboro Crossing\nhttps://customerservice2.southerncompany.com/BusinessServices/PropertyManagers/Overview"
+  },
+  {
+   "whats_needed": "Conservice Resident Data",
+   "link": "https://docs.google.com/spreadsheets/d/1mnNa7v5srwikSgbB4dSALemjKdR1eiYlzaYu6_Fb2Yw/edit?gid=1229261602#gid=1229261602",
+   "whats_included": "Weekly Resident report is received via email - ResiHome Current Resident Data"
+  },
+  {
+   "whats_needed": "Utility Terminology",
+   "link": "https://docs.google.com/document/d/1G_3E-qX_l9p0yKxAIbGco_aQAO3126qeFi4TZjBjaYo/edit?tab=t.0",
+   "whats_included": "Words that are typically used in the utility industry"
+  },
+  {
+   "whats_needed": "Deposit Information",
+   "link": "",
+   "whats_included": ""
+  }
+ ]
+}

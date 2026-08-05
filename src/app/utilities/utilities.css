@@ -267,3 +267,55 @@
   border-radius: 6px; width: 24px; height: 24px; font-size: 11px; line-height: 1;
 }
 .ops .delbtn:hover { border-color: var(--ops-bad); color: var(--ops-bad); background: #fdeef0; }
+
+/* ── Utility Tracker · master document (multi-sheet) ── */
+.ops .sheetblurb { color: var(--ops-muted); font-size: 12px; margin: 2px 0 10px; max-width: 74ch; }
+
+.ops .sheetnav { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.ops .sheetgroup { display: flex; flex-direction: column; }
+.ops .sheetgroup-h {
+  font-size: 9.5px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--ops-muted);
+  font-weight: 800; margin: 4px 0 3px;
+}
+.ops .sheetbtn {
+  text-align: left; cursor: pointer; border: 1px solid transparent; background: transparent;
+  color: var(--ops-ink); font: inherit; font-size: 12.5px; padding: 5px 9px; border-radius: 7px;
+  width: 100%; line-height: 1.25;
+}
+.ops .sheetbtn:hover { background: #fff; border-color: var(--ops-line); }
+.ops .sheetbtn.on { background: var(--ops-brand); color: #fff; font-weight: 700; border-color: var(--ops-brand); }
+.ops .sheetbtn.locked { color: var(--ops-muted); }
+
+/* selects + textareas edit inline like inputs */
+.ops select.cell, .ops textarea.cell {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 12px; color: var(--ops-ink);
+  background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 5px 7px;
+}
+.ops select.cell:hover, .ops textarea.cell:hover { border-color: var(--ops-line); background: #fff; }
+.ops select.cell:focus, .ops textarea.cell:focus {
+  outline: none; border-color: var(--ops-brand); background: #fff; box-shadow: 0 0 0 2px var(--ops-brand-tint);
+}
+.ops select.cell { cursor: pointer; min-width: 120px; }
+.ops textarea.cell { resize: vertical; line-height: 1.35; min-height: 30px; }
+
+/* per-kind widths (apply to input / select / textarea alike) */
+.ops .cell.k-community { min-width: 150px; font-weight: 600; }
+.ops .cell.k-select { min-width: 130px; }
+.ops .cell.k-longtext { min-width: 260px; }
+.ops .cell.k-link { min-width: 210px; }
+.ops .cell.k-cost { min-width: 72px; }
+.ops select.cell.k-pay { color: var(--ops-brand-dark); min-width: 140px; font-weight: 600; }
+
+/* link cell */
+.ops .linkcell { display: flex; align-items: center; gap: 4px; }
+.ops .linkopen { text-decoration: none; color: var(--ops-brand); font-weight: 800; padding: 0 4px; flex: 0 0 auto; }
+
+/* locked reference (provider passwords) */
+.ops .lockcard {
+  background: var(--ops-panel); border: 1px solid var(--ops-line); border-radius: 12px;
+  box-shadow: var(--ops-shadow); padding: 28px 26px; max-width: 660px; margin-top: 8px;
+}
+.ops .lockcard .lockicon { font-size: 30px; }
+.ops .lockcard h3 { margin: 8px 0 6px; font-size: 16px; }
+.ops .lockcard p { color: var(--ops-ink); font-size: 13px; line-height: 1.55; margin: 6px 0; }
+.ops .lockcard p.muted { color: var(--ops-muted); }

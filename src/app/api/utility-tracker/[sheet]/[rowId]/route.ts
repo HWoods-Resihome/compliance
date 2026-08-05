@@ -1,21 +1,23 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { isAuthorized } from "@/lib/config";
-import { updateRow, deleteRow, HubSpotNotConfiguredError } from "@/lib/utilityTracker";
+import { updateRow, deleteRow, sheetByKey, HubSpotNotConfiguredError } from "@/lib/utilityTracker";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- *   PATCH  /api/utility-tracker/{rowId}  { values } → update a row
- *   DELETE /api/utility-tracker/{rowId}             → delete a row
+ *   PATCH  /api/utility-tracker/{sheet}/{rowId}  { values } → update a row
+ *   DELETE /api/utility-tracker/{sheet}/{rowId}             → delete a row
  */
-export async function PATCH(req: Request, ctx: { params: Promise<{ rowId: string }> }) {
+export async function PATCH(req: Request, ctx: { params: Promise<{ sheet: string; rowId: string }> }) {
   if (!isAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const { rowId } = await ctx.params;
+  const { sheet: key, rowId } = await ctx.params;
+  const sheet = sheetByKey(key);
+  if (!sheet || sheet.locked) return NextResponse.json({ error: "unknown_sheet" }, { status: 404 });
   try {
     const body = (await req.json().catch(() => ({}))) as { values?: Record<string, unknown> };
-    const row = await updateRow(rowId, body.values ?? {});
+    const row = await updateRow(sheet, rowId, body.values ?? {});
     revalidateTag("utility-tracker");
     return NextResponse.json({ ok: true, row });
   } catch (err) {
@@ -23,11 +25,13 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ rowId: string
   }
 }
 
-export async function DELETE(req: Request, ctx: { params: Promise<{ rowId: string }> }) {
+export async function DELETE(req: Request, ctx: { params: Promise<{ sheet: string; rowId: string }> }) {
   if (!isAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const { rowId } = await ctx.params;
+  const { sheet: key, rowId } = await ctx.params;
+  const sheet = sheetByKey(key);
+  if (!sheet || sheet.locked) return NextResponse.json({ error: "unknown_sheet" }, { status: 404 });
   try {
-    await deleteRow(rowId);
+    await deleteRow(sheet, rowId);
     revalidateTag("utility-tracker");
     return NextResponse.json({ ok: true });
   } catch (err) {

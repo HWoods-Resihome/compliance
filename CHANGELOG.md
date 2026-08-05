@@ -2,21 +2,38 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased] — Utility Tracker (editable, HubDB-backed)
+## [Unreleased] — Utility Tracker → master document (all 15 tabs)
 
 ### Added
-- **`/utility-guide` rebuilt as the Utility Tracker** — the Google Sheet's
-  "DRC & 3RD PARTY Community Info" tab (State · Community · Electric/Gas/Water/
-  Sewer/Trash provider · who-pays · cost · notes) is now a **fully editable,
-  filterable table** so the team can move off the spreadsheet. Same Operations
-  look as `/utilities` (pink/Raleway, slicer rail + canvas, KPI cards); scoped
-  under `.ops`. Filters: search / state / who-pays. Inline-edit every cell
-  (autosaves on blur), add and delete communities.
-- **HubDB store** (`src/lib/utilityTracker.ts`): a `utility_tracker_communities`
-  HubDB table (resolved by name, auto-created + seeded with the 26 communities).
-  CRUD via draft rows + push-live. API: `GET/POST /api/utility-tracker`,
-  `PATCH/DELETE /api/utility-tracker/{rowId}`, `POST /api/utility-tracker/setup`
-  (create + seed). Auth-guarded.
+- **`/utility-guide` is now a multi-sheet "master document"** covering **every
+  tab** of the RESIHOME Utility Guide spreadsheet, so the team can retire the
+  sheet entirely. A grouped sheet-switcher in the rail moves between:
+  - **Communities & Providers** — DRC & 3rd Party (26), Builder Communities
+    (DreamFinders/McKinley/Rocklyn, unified with a Portfolio slicer), Misc Fees.
+  - **Reference** — Leak Adjustments, Provider Info, Client Info, LOAs Required,
+    Conservice Call Log, Resources & Links.
+  - **Operations** — Weekly Responsibilities, Templates, Utility Coding,
+    Resident Notes.
+  - **Locked** — Provider Passwords (surfaced as a locked notice, never stored).
+  Every sheet is a fully editable, filterable HubDB table (search + context
+  filters for state / portfolio / who-pays; dynamic KPIs; add / delete / inline
+  edit with autosave). 190 rows seeded across 12 new HubDB tables.
+- **Dropdown cells**: any column with an option set (who-pays, portfolio,
+  utility type, LOA requirement) now renders a real `<select>` — fixes the
+  who-pays picker (Resident / Conservice … ) that previously didn't populate.
+  Long-text fields render as inline textareas; link fields get an open-↗ action.
+- **Generalized HubDB layer** (`src/lib/utilityTracker.ts`): a `SHEETS` registry
+  (each sheet → its own `utility_tracker_*` table + typed columns) with generic
+  CRUD (draft rows + push-live) and idempotent seeding. API restructured to
+  `GET/POST /api/utility-tracker/{sheet}`,
+  `PATCH/DELETE /api/utility-tracker/{sheet}/{rowId}`, and
+  `POST /api/utility-tracker/setup` (seeds all sheets, or one via `{sheet}`).
+
+### Security
+- **No credentials in the repo or HubDB.** The seed (`utilityMasterSeed.json`)
+  is sanitized: the "PROVIDER PASSWORDS" tab is excluded, and every provider
+  login cell has its password redacted to "🔒 password vaulted" while keeping the
+  website / username / login. Verified zero secret tokens in the committed seed.
 
 ## [Unreleased] — Action-items (CTA) dashboard (live)
 
