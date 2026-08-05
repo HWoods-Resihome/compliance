@@ -32,6 +32,13 @@ All notable changes to this project are documented here.
   organization grouping is reliable even when the ticket's own fields are blank.
   Organization is derived from the entity-ID prefix (RP→SFR, RB→DRC, RH→Rocklyn,
   …).
+- **Community** group dimension — the Property→Community (`2-56454860`)
+  association resolves each ticket's community name (batched + cached), shown
+  under the address and available as a group-by. Populated where communities
+  exist; "Unassigned" for scattered single-family.
+- **Board cache** (`getCachedCtaBoard`, 45s) so traffic doesn't re-hit HubSpot on
+  every request (cold ~2.7s → warm ~0.25s), atop the ~5–10 min owner / property /
+  community maps. `HUBSPOT_TOKEN` confirmed present in Vercel (prod + preview).
 
 ### Field mapping (this portal, overridable via `HUBSPOT_*_PROPERTY`)
 - due date → `follow_up_date` · address → `full_address` · portfolio →

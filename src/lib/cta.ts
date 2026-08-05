@@ -23,6 +23,7 @@
  * gracefully. A `demo` mode returns sample rows for review without a token.
  */
 
+import { unstable_cache } from "next/cache";
 import {
   getPipeline,
   getStage,
@@ -147,6 +148,7 @@ export type GroupDimension =
   | "owner"
   | "portfolio"
   | "organization"
+  | "community"
   | "region"
   | "state"
   | "address";
@@ -157,6 +159,7 @@ export const GROUP_DIMENSIONS: Array<{ key: GroupDimension; label: string }> = [
   { key: "owner", label: "Ticket Owner" },
   { key: "portfolio", label: "Portfolio" },
   { key: "organization", label: "Organization" },
+  { key: "community", label: "Community" },
   { key: "region", label: "Region" },
   { key: "state", label: "State" },
   { key: "address", label: "Address" },
@@ -188,6 +191,7 @@ export type CtaItem = {
   region: string | null;
   portfolio: string | null;
   organization: string | null;
+  community: string | null;
   url: string;
 };
 
@@ -271,6 +275,8 @@ function groupKeyFor(item: CtaItem, dim: GroupDimension): string {
       return item.portfolio ?? UNASSIGNED;
     case "organization":
       return item.organization ?? UNASSIGNED;
+    case "community":
+      return item.community ?? UNASSIGNED;
     case "region":
       return item.region ?? UNASSIGNED;
     case "state":
@@ -321,6 +327,8 @@ type PropFields = {
 const ENRICH_TTL_MS = 10 * 60 * 1000;
 const ticketPropCache = new Map<string, { at: number; propertyId: string | null }>();
 const propFieldCache = new Map<string, { at: number; data: PropFields }>();
+const propCommunityCache = new Map<string, { at: number; communityId: string | null }>();
+const communityNameCache = new Map<string, { at: number; name: string | null }>();
 
 const STATE_NAME_TO_ABBR: Record<string, string> = {
   alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA",
@@ -423,7 +431,57 @@ async function loadPropertyFields(propertyIds: string[]): Promise<void> {
   );
 }
 
-/** Best-effort: overlay each ticket's associated-Property fields onto the item. */
+/** Property → Community (2-56454860) association; community_name pulled after. */
+async function loadPropertyCommunities(propertyIds: string[]): Promise<void> {
+  const now = Date.now();
+  const need = [...new Set(propertyIds)].filter((id) => {
+    const c = propCommunityCache.get(id);
+    return !c || now - c.at > ENRICH_TTL_MS;
+  });
+  await Promise.all(
+    chunk(need, 100).map(async (ids) => {
+      const data = (await hs(
+        `/crm/v4/associations/${OBJECT_IDS.properties}/${OBJECT_IDS.communities}/batch/read`,
+        { method: "POST", body: JSON.stringify({ inputs: ids.map((id) => ({ id })) }) },
+      )) as { results?: { from?: { id?: string }; to?: { toObjectId?: string; id?: string }[] }[] };
+      const seen = new Set<string>();
+      for (const r of data.results ?? []) {
+        const fromId = String(r.from?.id ?? "");
+        const to = r.to?.[0];
+        const cid = to ? String(to.toObjectId ?? to.id ?? "") : "";
+        if (fromId) {
+          propCommunityCache.set(fromId, { at: now, communityId: cid || null });
+          seen.add(fromId);
+        }
+      }
+      for (const id of ids) if (!seen.has(id)) propCommunityCache.set(id, { at: now, communityId: null });
+    }),
+  );
+}
+
+async function loadCommunityNames(communityIds: string[]): Promise<void> {
+  const now = Date.now();
+  const need = [...new Set(communityIds)].filter((id) => {
+    const c = communityNameCache.get(id);
+    return !c || now - c.at > ENRICH_TTL_MS;
+  });
+  await Promise.all(
+    chunk(need, 100).map(async (ids) => {
+      const data = (await hs(`/crm/v3/objects/${OBJECT_IDS.communities}/batch/read`, {
+        method: "POST",
+        body: JSON.stringify({ properties: ["community_name"], inputs: ids.map((id) => ({ id })) }),
+      })) as { results?: { id: string; properties: Record<string, string | null> }[] };
+      for (const r of data.results ?? []) {
+        communityNameCache.set(String(r.id), { at: now, name: r.properties.community_name ?? null });
+      }
+    }),
+  );
+}
+
+/**
+ * Best-effort: overlay each ticket's associated-Property fields (address/state/
+ * region/portfolio/org) and its Property→Community name onto the item.
+ */
 async function enrichFromProperties(items: CtaItem[]): Promise<void> {
   if (items.length === 0) return;
   try {
@@ -431,17 +489,26 @@ async function enrichFromProperties(items: CtaItem[]): Promise<void> {
     const pids = items
       .map((i) => ticketPropCache.get(i.id)?.propertyId)
       .filter((x): x is string => !!x);
-    await loadPropertyFields(pids);
+    await Promise.all([loadPropertyFields(pids), loadPropertyCommunities(pids)]);
+    const cids = pids
+      .map((p) => propCommunityCache.get(p)?.communityId)
+      .filter((x): x is string => !!x);
+    await loadCommunityNames(cids);
+
     for (const it of items) {
       const pid = ticketPropCache.get(it.id)?.propertyId;
-      const pf = pid ? propFieldCache.get(pid)?.data : undefined;
-      if (!pf) continue;
-      it.address = pf.address ?? it.address;
-      const st = normState(pf.state) ?? it.state;
-      it.state = st;
-      it.region = pf.region ?? it.region ?? (st ? regionForState(st) : null);
-      it.portfolio = pf.portfolio ?? it.portfolio;
-      it.organization = orgFromEntityId(pf.entityId) ?? it.organization;
+      if (!pid) continue;
+      const pf = propFieldCache.get(pid)?.data;
+      if (pf) {
+        it.address = pf.address ?? it.address;
+        const st = normState(pf.state) ?? it.state;
+        it.state = st;
+        it.region = pf.region ?? it.region ?? (st ? regionForState(st) : null);
+        it.portfolio = pf.portfolio ?? it.portfolio;
+        it.organization = orgFromEntityId(pf.entityId) ?? it.organization;
+      }
+      const cid = propCommunityCache.get(pid)?.communityId;
+      if (cid) it.community = communityNameCache.get(cid)?.name ?? it.community;
     }
   } catch {
     // Enrichment is best-effort; keep the ticket-level fields on failure.
@@ -557,6 +624,7 @@ async function fetchOpenTickets(pipelineIds: string[]): Promise<CtaItem[]> {
       region,
       portfolio: FIELD_CONFIG.portfolio ? p[FIELD_CONFIG.portfolio] ?? null : null,
       organization: FIELD_CONFIG.organization ? p[FIELD_CONFIG.organization] ?? null : null,
+      community: null,
       url: ticketUrl(r.id),
     });
   }
@@ -585,14 +653,14 @@ function demoItems(): CtaItem[] {
     return d.toISOString();
   };
   const rows = [
-    { pipelineId: "80932995", stageId: "153030989", subject: "Activate utilities — new move-in", due: -2, address: "425 Country Club Ln, Anderson, SC 29625", portfolio: "SFR", organization: "Hudson Oak", owner: "Jobelle Cruz" },
-    { pipelineId: "74152797", stageId: "171460627", subject: "Deactivation needs attention — final bill", due: -1, address: "710 Ali St, Temple, GA 30179", portfolio: "DRC", organization: "Rocklyn Homes", owner: "Beverly Freeman" },
-    { pipelineId: "81076231", stageId: "1064300863", subject: "Occupancy confirmation required", due: 0, address: "18 W Michigan St, Greenfield, IN 46140", portfolio: "SFR", organization: "Appreciation Homes", owner: "Jacob Lee" },
-    { pipelineId: "710375823", stageId: "1037618972", subject: "HOA violation — pending association", due: 1, address: "9190 SW Spillers Dr, Covington, GA 30014", portfolio: "SFR", organization: "SFR", owner: "Jobelle Cruz" },
-    { pipelineId: "82532219", stageId: "219848865", subject: "Pre-lease: pending activation of utilities", due: 3, address: "1609 Hoofprint Ct, Fruitland Park, FL 34731", portfolio: "DRC", organization: "RB FL Development", owner: "Beverly Freeman" },
-    { pipelineId: "836574598", stageId: "1337392284", subject: "PM Accounting — pending utility team", due: 5, address: "30 Allison Ct, Stockbridge, GA 30281", portfolio: "SFR", organization: "Newstar", owner: "Jacob Lee" },
-    { pipelineId: "887434516", stageId: "1334736698", subject: "Association verification — new", due: 9, address: "20942 Patriot Park Ln, Katy, TX 77449", portfolio: "SFR", organization: "ROI", owner: "Jobelle Cruz" },
-    { pipelineId: "923304266", stageId: "1412071046", subject: "Lien action — pending payment", due: 12, address: "104 Firefly Ln, Huntsville, AL 35810", portfolio: "SFR", organization: "ROI", owner: "Beverly Freeman" },
+    { pipelineId: "80932995", stageId: "153030989", subject: "Activate utilities — new move-in", due: -2, address: "425 Country Club Ln, Anderson, SC 29625", portfolio: "SFR", organization: "Hudson Oak", community: "Copperleaf", owner: "Jobelle Cruz" },
+    { pipelineId: "74152797", stageId: "171460627", subject: "Deactivation needs attention — final bill", due: -1, address: "710 Ali St, Temple, GA 30179", portfolio: "DRC", organization: "Rocklyn Homes", community: "Hamilton", owner: "Beverly Freeman" },
+    { pipelineId: "81076231", stageId: "1064300863", subject: "Occupancy confirmation required", due: 0, address: "18 W Michigan St, Greenfield, IN 46140", portfolio: "SFR", organization: "Appreciation Homes", community: null, owner: "Jacob Lee" },
+    { pipelineId: "710375823", stageId: "1037618972", subject: "HOA violation — pending association", due: 1, address: "9190 SW Spillers Dr, Covington, GA 30014", portfolio: "SFR", organization: "SFR", community: null, owner: "Jobelle Cruz" },
+    { pipelineId: "82532219", stageId: "219848865", subject: "Pre-lease: pending activation of utilities", due: 3, address: "1609 Hoofprint Ct, Fruitland Park, FL 34731", portfolio: "DRC", organization: "RB FL Development", community: null, owner: "Beverly Freeman" },
+    { pipelineId: "836574598", stageId: "1337392284", subject: "PM Accounting — pending utility team", due: 5, address: "30 Allison Ct, Stockbridge, GA 30281", portfolio: "SFR", organization: "Newstar", community: null, owner: "Jacob Lee" },
+    { pipelineId: "887434516", stageId: "1334736698", subject: "Association verification — new", due: 9, address: "20942 Patriot Park Ln, Katy, TX 77449", portfolio: "SFR", organization: "ROI", community: null, owner: "Jobelle Cruz" },
+    { pipelineId: "923304266", stageId: "1412071046", subject: "Lien action — pending payment", due: 12, address: "104 Firefly Ln, Huntsville, AL 35810", portfolio: "SFR", organization: "ROI", community: "Highland Pointe", owner: "Beverly Freeman" },
   ];
   return rows.map((r, i) => {
     const pipeline = getPipeline(r.pipelineId);
@@ -616,6 +684,7 @@ function demoItems(): CtaItem[] {
       region: state ? regionForState(state) : null,
       portfolio: r.portfolio,
       organization: r.organization,
+      community: r.community,
       url: "#",
     };
   });
@@ -679,4 +748,19 @@ export async function getCtaBoard(q: CtaQuery = {}): Promise<CtaResult> {
     }
     throw err;
   }
+}
+
+/**
+ * Cached board (45s) so heavy traffic doesn't re-hit HubSpot on every request.
+ * Keyed by the selected pipelines + group-by + demo. The per-object owner /
+ * property / community maps are additionally cached ~5–10 min inside the fetch.
+ */
+export function getCachedCtaBoard(q: CtaQuery = {}): Promise<CtaResult> {
+  const key = [
+    "cta-board",
+    (q.pipelineIds ?? []).slice().sort().join(",") || "default",
+    q.groupBy ?? "pipeline",
+    q.demo ? "demo" : "live",
+  ];
+  return unstable_cache(() => getCtaBoard(q), key, { revalidate: 45 })();
 }

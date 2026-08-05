@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  getCtaBoard,
+  getCachedCtaBoard,
   GROUP_DIMENSIONS,
   type GroupDimension,
   type CtaItem,
@@ -64,7 +64,7 @@ export default async function UtilitiesPage({
   let board: CtaResult | null = null;
   let errorMessage: string | null = null;
   try {
-    board = await getCtaBoard({ pipelineIds: pipelines, groupBy, demo });
+    board = await getCachedCtaBoard({ pipelineIds: pipelines, groupBy, demo });
   } catch (err) {
     errorMessage = (err as Error).message;
   }
@@ -265,7 +265,10 @@ function GroupBlock({
           <td>
             <DueBadge item={it} />
           </td>
-          <td className="wrap">{it.address ?? "—"}</td>
+          <td className="wrap">
+            {it.address ?? "—"}
+            {it.community ? <div className="muted">{it.community}</div> : null}
+          </td>
           <td>
             {it.state ?? "—"}
             {it.region ? <span className="muted"> · {it.region}</span> : ""}
