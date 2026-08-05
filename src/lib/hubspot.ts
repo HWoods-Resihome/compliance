@@ -149,3 +149,85 @@ export async function listSchemas(): Promise<HubSpotSchema[]> {
     fullyQualifiedName: s.fullyQualifiedName ?? null,
   }));
 }
+
+// ── Mutations + owners (for the Action-Items board) ─────────────────────────
+
+/** HubSpot owners (users) available to assign / @-mention. */
+export type HubSpotOwner = { id: string; name: string; email: string | null };
+
+export async function listOwners(): Promise<HubSpotOwner[]> {
+  const out: HubSpotOwner[] = [];
+  let after: string | undefined;
+  for (let page = 0; page < 20; page++) {
+    const qs = new URLSearchParams({ limit: "100" });
+    if (after) qs.set("after", after);
+    const data = (await hubspotFetch(`/crm/v3/owners?${qs.toString()}`)) as {
+      results?: { id: string; firstName?: string; lastName?: string; email?: string; archived?: boolean }[];
+      paging?: { next?: { after?: string } };
+    };
+    for (const o of data.results ?? []) {
+      if (o.archived) continue;
+      const name = [o.firstName, o.lastName].filter(Boolean).join(" ").trim();
+      out.push({ id: String(o.id), name: name || o.email || `Owner ${o.id}`, email: o.email ?? null });
+    }
+    after = data.paging?.next?.after;
+    if (!after) break;
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Move a ticket to a new pipeline stage. */
+export async function updateTicketStage(ticketId: string, stageId: string): Promise<void> {
+  if (!/^\d+$/.test(ticketId)) throw new Error("invalid ticketId");
+  await hubspotFetch(`/crm/v3/objects/tickets/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ properties: { hs_pipeline_stage: stageId } }),
+  });
+}
+
+/** Note→Ticket default association type id (HUBSPOT_DEFINED). */
+const NOTE_TO_TICKET_ASSOC_TYPE = 228;
+
+/**
+ * Create a HubSpot note on a ticket, optionally @-mentioning owners (which
+ * notifies them). Returns the new note id.
+ */
+export async function createTicketNote(input: {
+  ticketId: string;
+  body: string;
+  mentionOwnerIds?: string[];
+}): Promise<{ id: string }> {
+  const { ticketId, body } = input;
+  if (!/^\d+$/.test(ticketId)) throw new Error("invalid ticketId");
+  const text = (body ?? "").trim();
+  if (!text) throw new Error("note body is empty");
+
+  const mentions = (input.mentionOwnerIds ?? []).filter((id) => /^\d+$/.test(id));
+  const properties: Record<string, string> = {
+    hs_note_body: `<div>${escapeHtml(text)}</div>`,
+    hs_timestamp: new Date().toISOString(),
+  };
+  if (mentions.length > 0) properties.hs_at_mentioned_owner_ids = mentions.join(";");
+
+  const data = (await hubspotFetch(`/crm/v3/objects/notes`, {
+    method: "POST",
+    body: JSON.stringify({
+      properties,
+      associations: [
+        {
+          to: { id: ticketId },
+          types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: NOTE_TO_TICKET_ASSOC_TYPE }],
+        },
+      ],
+    }),
+  })) as { id?: string };
+  return { id: String(data.id ?? "") };
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>");
+}

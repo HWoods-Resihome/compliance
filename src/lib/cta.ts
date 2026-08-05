@@ -762,5 +762,22 @@ export function getCachedCtaBoard(q: CtaQuery = {}): Promise<CtaResult> {
     q.groupBy ?? "pipeline",
     q.demo ? "demo" : "live",
   ];
-  return unstable_cache(() => getCtaBoard(q), key, { revalidate: 45 })();
+  return unstable_cache(() => getCtaBoard(q), key, { revalidate: 45, tags: ["cta-board"] })();
+}
+
+/** Distinct ticket owners present in a board, for the owner filter. */
+export function distinctOwners(board: CtaResult): Array<{ id: string; name: string }> {
+  const m = new Map<string, string>();
+  for (const it of board.items) {
+    if (it.ownerId) m.set(it.ownerId, it.ownerName ?? it.ownerId);
+  }
+  return [...m.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Narrow a board to a single owner (re-groups + re-totals). */
+export function filterBoardByOwner(board: CtaResult, ownerId: string): CtaResult {
+  const items = board.items.filter((i) => i.ownerId === ownerId);
+  return assemble(items, board.groupBy, board.monitoredPipelineIds, board.live, board.note);
 }

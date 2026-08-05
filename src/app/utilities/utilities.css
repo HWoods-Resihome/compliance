@@ -189,3 +189,48 @@
 .ops .dd-apply:hover { background: var(--ops-brand-dark); }
 .ops .dd-clear { margin-top: 8px; width: 100%; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; color: var(--ops-brand-dark); background: #fff; border: 1px solid var(--ops-brand); border-radius: 8px; padding: 7px 10px; }
 .ops .dd-clear:hover { background: var(--ops-brand-tint-2); }
+
+/* ── Inline stage select (in-row) ── */
+.ops select.rowstage {
+  font: inherit; font-size: 11.5px; color: var(--ops-ink); background: #fff;
+  border: 1px solid var(--ops-line); border-radius: 7px; padding: 4px 7px; max-width: 210px;
+  cursor: pointer;
+}
+.ops select.rowstage:hover { border-color: var(--ops-brand); }
+.ops select.rowstage:focus { outline: none; border-color: var(--ops-brand); box-shadow: 0 0 0 3px var(--ops-brand-tint); }
+.ops select.rowstage:disabled { opacity: 0.6; cursor: progress; }
+.ops select.rowstage.err { border-color: var(--ops-bad); box-shadow: 0 0 0 3px rgba(176, 0, 32, 0.12); }
+
+/* ── In-row note button + popup ── */
+.ops .notewrap { position: relative; display: inline-block; }
+.ops .notebtn {
+  cursor: pointer; font-size: 14px; line-height: 1; width: 28px; height: 26px;
+  border: 1px solid var(--ops-line); border-radius: 7px; background: #fff; color: var(--ops-brand-dark);
+}
+.ops .notebtn:hover { border-color: var(--ops-brand); background: var(--ops-brand-tint-2); }
+.ops .notepop {
+  position: absolute; z-index: 1200; right: 0; top: calc(100% + 4px); width: 320px;
+  background: #fff; border: 1px solid var(--ops-line); border-radius: 10px;
+  box-shadow: 0 12px 34px rgba(20, 23, 26, 0.22); overflow: visible;
+}
+.ops .notehead { padding: 9px 12px; border-bottom: 1px solid var(--ops-line); font-size: 12px; font-weight: 700; }
+.ops .notebody { position: relative; padding: 10px 12px 4px; }
+.ops .noteta {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; resize: vertical;
+  border: 1px solid var(--ops-line); border-radius: 8px; padding: 8px 10px; min-height: 74px;
+}
+.ops .noteta:focus { outline: none; border-color: var(--ops-brand); box-shadow: 0 0 0 3px var(--ops-brand-tint); }
+.ops .mentionmenu {
+  position: absolute; left: 12px; right: 12px; top: 100%; margin-top: -2px; z-index: 1300;
+  background: #fff; border: 1px solid var(--ops-line); border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(20, 23, 26, 0.2); overflow: hidden;
+}
+.ops .mentionopt { padding: 7px 11px; font-size: 12.5px; cursor: pointer; }
+.ops .mentionopt:hover { background: var(--ops-brand-tint-2); }
+.ops .notefoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px 11px; }
+.ops .notesubmit {
+  cursor: pointer; font: inherit; font-size: 12px; font-weight: 800; color: #fff;
+  background: var(--ops-brand); border: 1px solid var(--ops-brand); border-radius: 8px; padding: 6px 13px;
+}
+.ops .notesubmit:hover:not(:disabled) { background: var(--ops-brand-dark); }
+.ops .notesubmit:disabled { opacity: 0.5; cursor: default; }

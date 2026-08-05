@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {
   getCachedCtaBoard,
+  distinctOwners,
+  filterBoardByOwner,
   GROUP_DIMENSIONS,
   type GroupDimension,
   type CtaItem,
@@ -8,12 +10,17 @@ import {
 } from "@/lib/cta";
 import {
   PIPELINES,
-  PIPELINE_COUNT,
-  STAGE_COUNT,
   pipelinesByCategory,
   monitoredPipelineIds,
+  getPipeline,
 } from "@/lib/pipelines";
-import { GroupByDropdown, PipelinesDropdown, DemoToggle } from "./controls";
+import {
+  GroupByDropdown,
+  PipelinesDropdown,
+  OwnerFilter,
+  StageSelect,
+  NoteButton,
+} from "./controls";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -25,18 +32,20 @@ const CATALOG = pipelinesByCategory().map((c) => ({
   pipelines: c.pipelines.map((p) => ({ id: p.id, label: p.label, stages: p.stages.length })),
 }));
 
-type State = { pipelines: string[]; groupBy: GroupDimension; demo: boolean };
+type State = { pipelines: string[]; groupBy: GroupDimension; demo: boolean; owner: string | null };
 
 function hrefWith(s: Partial<State>, base: State): string {
   const pipelines = s.pipelines ?? base.pipelines;
   const groupBy = s.groupBy ?? base.groupBy;
   const demo = s.demo ?? base.demo;
+  const owner = s.owner !== undefined ? s.owner : base.owner;
   const params = new URLSearchParams();
   const def = monitoredPipelineIds();
   const same = pipelines.length === def.length && pipelines.every((id) => def.includes(id));
   if (!same) params.set("pipelines", pipelines.join(","));
   if (groupBy !== "pipeline") params.set("groupBy", groupBy);
   if (demo) params.set("demo", "1");
+  if (owner) params.set("owner", owner);
   const qs = params.toString();
   return `/utilities${qs ? `?${qs}` : ""}`;
 }
@@ -44,10 +53,11 @@ function hrefWith(s: Partial<State>, base: State): string {
 export default async function UtilitiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pipelines?: string; groupBy?: string; demo?: string }>;
+  searchParams: Promise<{ pipelines?: string; groupBy?: string; demo?: string; owner?: string }>;
 }) {
   const sp = await searchParams;
   const demo = sp.demo === "1" || sp.demo === "true";
+  const owner = sp.owner?.trim() || null;
   const groupBy: GroupDimension =
     sp.groupBy && GROUP_KEYS.has(sp.groupBy as GroupDimension)
       ? (sp.groupBy as GroupDimension)
@@ -57,14 +67,17 @@ export default async function UtilitiesPage({
       ? sp.pipelines.split(",").map((s) => s.trim()).filter((id) => ALL_IDS.includes(id))
       : monitoredPipelineIds();
 
-  const base: State = { pipelines, groupBy, demo };
+  const base: State = { pipelines, groupBy, demo, owner };
   const defaults = monitoredPipelineIds();
   const dimLabel = GROUP_DIMENSIONS.find((d) => d.key === groupBy)?.label ?? groupBy;
 
   let board: CtaResult | null = null;
+  let ownerOptions: Array<{ id: string; name: string }> = [];
   let errorMessage: string | null = null;
   try {
-    board = await getCachedCtaBoard({ pipelineIds: pipelines, groupBy, demo });
+    const full = await getCachedCtaBoard({ pipelineIds: pipelines, groupBy, demo });
+    ownerOptions = distinctOwners(full);
+    board = owner ? filterBoardByOwner(full, owner) : full;
   } catch (err) {
     errorMessage = (err as Error).message;
   }
@@ -84,18 +97,13 @@ export default async function UtilitiesPage({
         </div>
 
         <div className="slicer">
-          <h4>Monitored pipelines</h4>
-          <PipelinesDropdown catalog={CATALOG} base={base} defaults={defaults} allIds={ALL_IDS} />
+          <h4>Ticket owner</h4>
+          <OwnerFilter owners={ownerOptions} base={base} defaults={defaults} allIds={ALL_IDS} />
         </div>
 
         <div className="slicer">
-          <h4>View</h4>
-          <DemoToggle base={base} defaults={defaults} allIds={ALL_IDS} />
-          <p className="railnote">
-            {pipelines.length} of {PIPELINE_COUNT} pipelines · {STAGE_COUNT} stages total.
-            Grouping by portfolio / organization / owner / region / state / address reads
-            each ticket&apos;s fields (address parsed for state).
-          </p>
+          <h4>Monitored pipelines</h4>
+          <PipelinesDropdown catalog={CATALOG} base={base} defaults={defaults} allIds={ALL_IDS} />
         </div>
 
         <div className="slicer">
@@ -116,8 +124,12 @@ export default async function UtilitiesPage({
                   {board.live ? "live · HubSpot" : demo ? "sample data" : "not configured"}
                 </span>
                 <span>{pipelines.length} pipelines</span>
-                <span>·</span>
-                <span>grouped by {dimLabel}</span>
+                {owner && ownerOptions.find((o) => o.id === owner) && (
+                  <>
+                    <span>·</span>
+                    <span>{ownerOptions.find((o) => o.id === owner)!.name}</span>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -147,7 +159,7 @@ export default async function UtilitiesPage({
               />
             </div>
 
-            {/* Group-by chips (below the KPI card) — includes Ticket Owner */}
+            {/* Group-by chips */}
             <div className="toolbar">
               <span className="lbl">Group by</span>
               <div className="chips">
@@ -179,13 +191,7 @@ export default async function UtilitiesPage({
                   {board.groups.length === 0 && (
                     <tr>
                       <td colSpan={9} className="empty">
-                        No open action items for the selected pipelines.
-                        {!demo && !board.live && (
-                          <>
-                            {" "}
-                            <Link href={hrefWith({ demo: true }, base)}>Preview with sample data →</Link>
-                          </>
-                        )}
+                        No open action items for the selected pipelines{owner ? " and owner" : ""}.
                       </td>
                     </tr>
                   )}
@@ -198,9 +204,8 @@ export default async function UtilitiesPage({
 
             <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>
               {board.live ? "Live from HubSpot" : "Not live"} · generated{" "}
-              {new Date(board.generatedAt).toLocaleString("en-US")} · due date =
-              {" "}<code>follow_up_date</code> · address = <code>full_address</code> ·
-              owner resolved from <code>hubspot_owner_id</code>. Fields overridable via env.
+              {new Date(board.generatedAt).toLocaleString("en-US")} · change a stage or add a
+              note (with @mention) inline — writes straight to the ticket.
             </p>
           </>
         )}
@@ -254,40 +259,49 @@ function GroupBlock({
           {overdue > 0 && <span className="gover"> · {overdue} overdue</span>}
         </td>
       </tr>
-      {items.map((it) => (
-        <tr key={it.id}>
-          <td className="wrap">{it.subject}</td>
-          <td className="wrap">
-            <strong>{it.pipelineLabel}</strong>
-            <br />
-            <span className="muted">{it.stageLabel}</span>
-          </td>
-          <td>
-            <DueBadge item={it} />
-          </td>
-          <td className="wrap">
-            {it.address ?? "—"}
-            {it.community ? <div className="muted">{it.community}</div> : null}
-          </td>
-          <td>
-            {it.state ?? "—"}
-            {it.region ? <span className="muted"> · {it.region}</span> : ""}
-          </td>
-          <td>
-            {it.portfolio ?? "—"}
-            {it.organization ? <span className="muted"> · {it.organization}</span> : ""}
-          </td>
-          <td>{it.ownerName ?? (it.ownerId ? <span className="muted">#{it.ownerId}</span> : "—")}</td>
-          <td>{it.priority ? <span className={`prio ${it.priority.toLowerCase()}`}>{it.priority}</span> : "—"}</td>
-          <td>
-            {it.url && it.url !== "#" ? (
-              <a href={it.url} target="_blank" rel="noreferrer">open ↗</a>
-            ) : (
-              <span className="muted">—</span>
-            )}
-          </td>
-        </tr>
-      ))}
+      {items.map((it) => {
+        const stages = getPipeline(it.pipelineId)?.stages ?? [];
+        return (
+          <tr key={it.id}>
+            <td className="wrap">
+              {it.url && it.url !== "#" ? (
+                <a href={it.url} target="_blank" rel="noreferrer">{it.subject}</a>
+              ) : (
+                it.subject
+              )}
+            </td>
+            <td className="wrap">
+              <strong>{it.pipelineLabel}</strong>
+              <br />
+              {stages.length > 0 ? (
+                <StageSelect ticketId={it.id} pipelineId={it.pipelineId} stageId={it.stageId} stages={stages} />
+              ) : (
+                <span className="muted">{it.stageLabel}</span>
+              )}
+            </td>
+            <td>
+              <DueBadge item={it} />
+            </td>
+            <td className="wrap">
+              {it.address ?? "—"}
+              {it.community ? <div className="muted">{it.community}</div> : null}
+            </td>
+            <td>
+              {it.state ?? "—"}
+              {it.region ? <span className="muted"> · {it.region}</span> : ""}
+            </td>
+            <td>
+              {it.portfolio ?? "—"}
+              {it.organization ? <span className="muted"> · {it.organization}</span> : ""}
+            </td>
+            <td>{it.ownerName ?? (it.ownerId ? <span className="muted">#{it.ownerId}</span> : "—")}</td>
+            <td>{it.priority ? <span className={`prio ${it.priority.toLowerCase()}`}>{it.priority}</span> : "—"}</td>
+            <td>
+              <NoteButton ticketId={it.id} subject={it.subject} />
+            </td>
+          </tr>
+        );
+      })}
     </>
   );
 }

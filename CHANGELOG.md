@@ -36,9 +36,22 @@ All notable changes to this project are documented here.
   association resolves each ticket's community name (batched + cached), shown
   under the address and available as a group-by. Populated where communities
   exist; "Unassigned" for scattered single-family.
-- **Board cache** (`getCachedCtaBoard`, 45s) so traffic doesn't re-hit HubSpot on
-  every request (cold ~2.7s → warm ~0.25s), atop the ~5–10 min owner / property /
-  community maps. `HUBSPOT_TOKEN` confirmed present in Vercel (prod + preview).
+- **Board cache** (`getCachedCtaBoard`, 45s, tag `cta-board`) so traffic doesn't
+  re-hit HubSpot on every request (cold ~2.7s → warm ~0.25s), atop the ~5–10 min
+  owner / property / community maps. `HUBSPOT_TOKEN` confirmed in Vercel (prod +
+  preview).
+- **In-row actions (write to HubSpot).** The board now edits tickets in place:
+  - **Ticket-owner filter** in the rail narrows the board to one owner.
+  - **Inline stage dropdown** per row PATCHes `hs_pipeline_stage`
+    (`POST /api/hubspot/ticket/stage`) and revalidates the board.
+  - **Note button** per row opens a popup to add a HubSpot note
+    (`POST /api/hubspot/ticket/note`, associated via type 228) with an inline
+    **@mention** autocomplete over the 275 HubSpot users
+    (`GET /api/hubspot/owners`) — mentions set `hs_at_mentioned_owner_ids`, which
+    tags/notifies the user in HubSpot.
+  - The first column links straight to the ticket; the old "open" column and the
+    demo toggle / grouped-by caption / rail help-text were removed.
+  - `src/lib/hubspot.ts`: `updateTicketStage`, `createTicketNote`, `listOwners`.
 
 ### Field mapping (this portal, overridable via `HUBSPOT_*_PROPERTY`)
 - due date → `follow_up_date` · address → `full_address` · portfolio →
