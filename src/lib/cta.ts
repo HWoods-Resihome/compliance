@@ -29,7 +29,7 @@ import {
   isOpenStageLabel,
   monitoredPipelineIds,
 } from "./pipelines";
-import { regionForState } from "./utilityGuide";
+import { regionForState, OWNER_RULES } from "./utilityGuide";
 
 const HUBSPOT_BASE = "https://api.hubapi.com";
 
@@ -302,6 +302,152 @@ function groupItems(items: CtaItem[], dim: GroupDimension): CtaGroup[] {
   return groups;
 }
 
+// ── Association enrichment (ticket → Property) ───────────────────────────────
+//
+// Every ticket associates to exactly one Property (2-10767494), which carries
+// the authoritative full_address / state / region / portfolio / entity_id.
+// We batch-read the associations and the Property fields (both cached ~10 min),
+// then enrich each ticket — so grouping by address / state / region / portfolio
+// / organization is reliable even when the ticket's own fields are blank.
+
+type PropFields = {
+  address: string | null;
+  state: string | null;
+  region: string | null;
+  portfolio: string | null;
+  entityId: string | null;
+};
+
+const ENRICH_TTL_MS = 10 * 60 * 1000;
+const ticketPropCache = new Map<string, { at: number; propertyId: string | null }>();
+const propFieldCache = new Map<string, { at: number; data: PropFields }>();
+
+const STATE_NAME_TO_ABBR: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA",
+  colorado: "CO", connecticut: "CT", delaware: "DE", florida: "FL", georgia: "GA",
+  hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA", kansas: "KS",
+  kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD", massachusetts: "MA",
+  michigan: "MI", minnesota: "MN", mississippi: "MS", missouri: "MO", montana: "MT",
+  nebraska: "NE", nevada: "NV", "new hampshire": "NH", "new jersey": "NJ",
+  "new mexico": "NM", "new york": "NY", "north carolina": "NC", "north dakota": "ND",
+  ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA", "rhode island": "RI",
+  "south carolina": "SC", "south dakota": "SD", tennessee: "TN", texas: "TX", utah: "UT",
+  vermont: "VT", virginia: "VA", washington: "WA", "west virginia": "WV",
+  wisconsin: "WI", wyoming: "WY",
+};
+
+function normState(s: string | null): string | null {
+  if (!s) return null;
+  const t = s.trim();
+  if (t.length === 2) return t.toUpperCase();
+  return STATE_NAME_TO_ABBR[t.toLowerCase()] ?? t;
+}
+
+/** Entity-ID prefix → owning fund (e.g. RPGA0045 → SFR, RHGA… → Rocklyn Homes). */
+const ORG_PREFIXES = OWNER_RULES.flatMap((r) =>
+  r.entityPrefixes.map((p) => ({ prefix: p.toUpperCase(), client: r.client })),
+).sort((a, b) => b.prefix.length - a.prefix.length);
+
+function orgFromEntityId(entityId: string | null): string | null {
+  if (!entityId) return null;
+  const up = entityId.trim().toUpperCase();
+  for (const { prefix, client } of ORG_PREFIXES) {
+    if (up.startsWith(prefix)) return client;
+  }
+  return null;
+}
+
+const chunk = <T,>(arr: T[], n: number): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+};
+
+async function loadTicketProperties(ticketIds: string[]): Promise<void> {
+  const now = Date.now();
+  const need = ticketIds.filter((id) => {
+    const c = ticketPropCache.get(id);
+    return !c || now - c.at > ENRICH_TTL_MS;
+  });
+  await Promise.all(
+    chunk(need, 100).map(async (ids) => {
+      const data = (await hs(`/crm/v4/associations/tickets/${OBJECT_IDS.properties}/batch/read`, {
+        method: "POST",
+        body: JSON.stringify({ inputs: ids.map((id) => ({ id })) }),
+      })) as { results?: { from?: { id?: string }; to?: { toObjectId?: string; id?: string }[] }[] };
+      const seen = new Set<string>();
+      for (const r of data.results ?? []) {
+        const fromId = String(r.from?.id ?? "");
+        const to = r.to?.[0];
+        const pid = to ? String(to.toObjectId ?? to.id ?? "") : "";
+        if (fromId) {
+          ticketPropCache.set(fromId, { at: now, propertyId: pid || null });
+          seen.add(fromId);
+        }
+      }
+      for (const id of ids) if (!seen.has(id)) ticketPropCache.set(id, { at: now, propertyId: null });
+    }),
+  );
+}
+
+async function loadPropertyFields(propertyIds: string[]): Promise<void> {
+  const now = Date.now();
+  const uniq = [...new Set(propertyIds)];
+  const need = uniq.filter((id) => {
+    const c = propFieldCache.get(id);
+    return !c || now - c.at > ENRICH_TTL_MS;
+  });
+  await Promise.all(
+    chunk(need, 100).map(async (ids) => {
+      const data = (await hs(`/crm/v3/objects/${OBJECT_IDS.properties}/batch/read`, {
+        method: "POST",
+        body: JSON.stringify({
+          properties: ["full_address", "state", "region", "portfolio", "entity_id"],
+          inputs: ids.map((id) => ({ id })),
+        }),
+      })) as { results?: { id: string; properties: Record<string, string | null> }[] };
+      for (const r of data.results ?? []) {
+        const x = r.properties;
+        propFieldCache.set(String(r.id), {
+          at: now,
+          data: {
+            address: x.full_address ?? null,
+            state: x.state ?? null,
+            region: x.region ?? null,
+            portfolio: x.portfolio ?? null,
+            entityId: x.entity_id ?? null,
+          },
+        });
+      }
+    }),
+  );
+}
+
+/** Best-effort: overlay each ticket's associated-Property fields onto the item. */
+async function enrichFromProperties(items: CtaItem[]): Promise<void> {
+  if (items.length === 0) return;
+  try {
+    await loadTicketProperties(items.map((i) => i.id));
+    const pids = items
+      .map((i) => ticketPropCache.get(i.id)?.propertyId)
+      .filter((x): x is string => !!x);
+    await loadPropertyFields(pids);
+    for (const it of items) {
+      const pid = ticketPropCache.get(it.id)?.propertyId;
+      const pf = pid ? propFieldCache.get(pid)?.data : undefined;
+      if (!pf) continue;
+      it.address = pf.address ?? it.address;
+      const st = normState(pf.state) ?? it.state;
+      it.state = st;
+      it.region = pf.region ?? it.region ?? (st ? regionForState(st) : null);
+      it.portfolio = pf.portfolio ?? it.portfolio;
+      it.organization = orgFromEntityId(pf.entityId) ?? it.organization;
+    }
+  } catch {
+    // Enrichment is best-effort; keep the ticket-level fields on failure.
+  }
+}
+
 // ── Live fetch ───────────────────────────────────────────────────────────────
 
 async function fetchOpenTickets(pipelineIds: string[]): Promise<CtaItem[]> {
@@ -414,6 +560,10 @@ async function fetchOpenTickets(pipelineIds: string[]): Promise<CtaItem[]> {
       url: ticketUrl(r.id),
     });
   }
+
+  // Overlay each ticket's associated-Property fields (address/state/region/
+  // portfolio/org) so grouping is reliable even when ticket fields are blank.
+  await enrichFromProperties(items);
 
   // Client-side urgency sort: overdue → today → week → later → none, then date.
   items.sort((a, b) => {

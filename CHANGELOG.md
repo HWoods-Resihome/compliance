@@ -25,6 +25,13 @@ All notable changes to this project are documented here.
   group) reacting to the pipeline selection and group-by.
 - **HubSpot field-name discovery** (`/api/hubspot/properties`, `listProperties`/
   `listSchemas`, `scripts/hubspot-fields.mjs`) — used to map the live fields.
+- **Association enrichment** — each ticket associates to one Property
+  (`2-10767494`); the board batch-reads those associations + the Property's
+  `full_address` / `state` / `region` / `portfolio` / `entity_id` (both cached
+  ~10 min) and overlays them, so address / state / region / portfolio /
+  organization grouping is reliable even when the ticket's own fields are blank.
+  Organization is derived from the entity-ID prefix (RP→SFR, RB→DRC, RH→Rocklyn,
+  …).
 
 ### Field mapping (this portal, overridable via `HUBSPOT_*_PROPERTY`)
 - due date → `follow_up_date` · address → `full_address` · portfolio →
